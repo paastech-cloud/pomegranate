@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 bollard = "0.14"
+env_logger = "0.10.0"
+log = "0.4.19"
 tonic = "0.9.2"
