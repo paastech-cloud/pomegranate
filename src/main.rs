@@ -4,10 +4,12 @@ mod errors;
 
 use log::info;
 use std::collections::HashMap;
+use std::thread;
+use std::time::Duration;
 
 use crate::application::Application;
 use crate::engine::docker_engine::DockerEngine;
-use crate::engine::engine::Engine;
+use crate::engine::Engine;
 
 #[tokio::main]
 async fn main() {
@@ -36,5 +38,13 @@ async fn main() {
         env_variables: HashMap::from([(String::from("VERBOSITY"), String::from("5"))]),
     };
 
-    engine.start_application(&sample_app).await.unwrap();
+    engine
+        .start_application(&sample_app)
+        .await
+        .unwrap_or_default();
+    thread::sleep(Duration::from_secs(3));
+    engine
+        .stop_application(&sample_app.project_id, &sample_app.application_id)
+        .await
+        .unwrap_or_default();
 }

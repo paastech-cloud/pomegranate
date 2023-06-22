@@ -1,12 +1,15 @@
 use async_trait::async_trait;
-use bollard::container::{Config, CreateContainerOptions, StartContainerOptions};
+use bollard::container::{
+    Config, CreateContainerOptions, RemoveContainerOptions, StartContainerOptions,
+    StopContainerOptions,
+};
 use bollard::image::CreateImageOptions;
 use bollard::Docker;
 use futures::stream::TryStreamExt;
 use log::{info, trace};
 
-use super::engine::Engine;
-use crate::errors::ApplicationStartError;
+use super::Engine;
+use crate::errors::{ApplicationStartError, ApplicationStopError};
 use crate::Application;
 
 pub struct DockerEngine {
@@ -24,6 +27,10 @@ impl DockerEngine {
         };
 
         DockerEngine { docker }
+    }
+
+    fn build_container_name(project_id: &str, application_id: &str) -> String {
+        format!("client-app_{}_{}", project_id, application_id)
     }
 }
 
@@ -61,7 +68,7 @@ impl Engine for DockerEngine {
 
         // Create the Docker container configuration
         let options = Some(CreateContainerOptions {
-            name: format!("{}-{}", app.project_id, app.application_id),
+            name: Self::build_container_name(&app.project_id, &app.application_id),
             ..Default::default()
         });
 
@@ -106,5 +113,60 @@ impl Engine for DockerEngine {
                 })
             }
         }
+    }
+
+    async fn stop_application(
+        &self,
+        project_id: &str,
+        application_id: &str,
+    ) -> Result<(), ApplicationStopError> {
+        // Stop the application
+        let container_name = Self::build_container_name(project_id, application_id);
+        let stop_options = Some(StopContainerOptions { t: 10 });
+
+        trace!(
+            "Stopping container: {} (options: {:?})",
+            container_name,
+            stop_options,
+        );
+
+        match self
+            .docker
+            .stop_container(&container_name, stop_options)
+            .await
+        {
+            Ok(_) => (),
+            Err(e) => {
+                return Err(ApplicationStopError {
+                    source: Box::new(e),
+                });
+            }
+        }
+
+        // Destroy the application
+        let remove_options = Some(RemoveContainerOptions {
+            ..Default::default()
+        });
+
+        trace!(
+            "Removing container: {} (options: {:?})",
+            container_name,
+            remove_options,
+        );
+
+        match self
+            .docker
+            .remove_container(&container_name, remove_options)
+            .await
+        {
+            Ok(_) => (),
+            Err(e) => {
+                return Err(ApplicationStopError {
+                    source: Box::new(e),
+                });
+            }
+        }
+
+        Ok(())
     }
 }
