@@ -9,7 +9,7 @@ use futures::stream::TryStreamExt;
 use log::{info, trace};
 
 use super::Engine;
-use crate::errors::{ApplicationIsRunningError, ApplicationStartError, ApplicationStopError};
+use crate::errors::Error;
 use crate::Application;
 
 pub struct DockerEngine {
@@ -36,7 +36,7 @@ impl DockerEngine {
 
 #[async_trait]
 impl Engine for DockerEngine {
-    async fn start_application(&self, app: &Application) -> Result<(), ApplicationStartError> {
+    async fn start_application(&self, app: &Application) -> Result<(), Error> {
         // Create the image
         trace!(
             "Pulling container image: {}:{}",
@@ -60,9 +60,9 @@ impl Engine for DockerEngine {
         {
             Ok(_) => (),
             Err(e) => {
-                return Err(ApplicationStartError {
+                return Err(Error::ApplicationCannotStart {
                     source: Box::new(e),
-                })
+                });
             }
         };
 
@@ -95,7 +95,7 @@ impl Engine for DockerEngine {
         let container_id = match self.docker.create_container(options, config).await {
             Ok(v) => v.id,
             Err(e) => {
-                return Err(ApplicationStartError {
+                return Err(Error::ApplicationCannotStart {
                     source: Box::new(e),
                 })
             }
@@ -108,18 +108,14 @@ impl Engine for DockerEngine {
         {
             Ok(_) => Ok(()),
             Err(e) => {
-                return Err(ApplicationStartError {
+                return Err(Error::ApplicationCannotStart {
                     source: Box::new(e),
                 })
             }
         }
     }
 
-    async fn stop_application(
-        &self,
-        project_id: &str,
-        application_id: &str,
-    ) -> Result<(), ApplicationStopError> {
+    async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<(), Error> {
         // Stop the application
         let container_name = Self::build_container_name(project_id, application_id);
         let stop_options = Some(StopContainerOptions { t: 10 });
@@ -137,7 +133,7 @@ impl Engine for DockerEngine {
         {
             Ok(_) => (),
             Err(e) => {
-                return Err(ApplicationStopError {
+                return Err(Error::ApplicationCannotStop {
                     source: Box::new(e),
                 });
             }
@@ -161,7 +157,7 @@ impl Engine for DockerEngine {
         {
             Ok(_) => (),
             Err(e) => {
-                return Err(ApplicationStopError {
+                return Err(Error::ApplicationCannotStop {
                     source: Box::new(e),
                 });
             }
@@ -174,7 +170,7 @@ impl Engine for DockerEngine {
         &self,
         project_id: &str,
         application_id: &str,
-    ) -> Result<bool, ApplicationIsRunningError> {
+    ) -> Result<bool, Error> {
         // Inspect the container
         let options = Some(InspectContainerOptions { size: false });
 
@@ -193,12 +189,12 @@ impl Engine for DockerEngine {
                     if status_code == 404 {
                         Ok(false)
                     } else {
-                        Err(ApplicationIsRunningError {
+                        Err(Error::ApplicationStateUnavailable {
                             source: Box::new(e),
                         })
                     }
                 } else {
-                    Err(ApplicationIsRunningError {
+                    Err(Error::ApplicationStateUnavailable {
                         source: Box::new(e),
                     })
                 }
