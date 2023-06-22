@@ -11,15 +11,19 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
+
     - name: Build
       run: cargo build --verbose --release
+
     - name: Run tests
       run: cargo test --verbose
+
+    - name: Run clippy
+      run: cargo clippy
+
     - uses: actions/upload-artifact@v3
       name: Upload artifacts
       with:
