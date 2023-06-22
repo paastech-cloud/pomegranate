@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use bollard::container::{
-    Config, CreateContainerOptions, RemoveContainerOptions, StartContainerOptions,
-    StopContainerOptions,
+    Config, CreateContainerOptions, InspectContainerOptions, RemoveContainerOptions,
+    StartContainerOptions, StopContainerOptions,
 };
 use bollard::image::CreateImageOptions;
 use bollard::Docker;
@@ -9,7 +9,7 @@ use futures::stream::TryStreamExt;
 use log::{info, trace};
 
 use super::Engine;
-use crate::errors::{ApplicationStartError, ApplicationStopError};
+use crate::errors::{ApplicationIsRunningError, ApplicationStartError, ApplicationStopError};
 use crate::Application;
 
 pub struct DockerEngine {
@@ -168,5 +168,41 @@ impl Engine for DockerEngine {
         }
 
         Ok(())
+    }
+
+    async fn is_application_running(
+        &self,
+        project_id: &str,
+        application_id: &str,
+    ) -> Result<bool, ApplicationIsRunningError> {
+        // Inspect the container
+        let options = Some(InspectContainerOptions { size: false });
+
+        match self
+            .docker
+            .inspect_container(
+                &Self::build_container_name(project_id, application_id),
+                options,
+            )
+            .await
+        {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                // Only return an OK result if Docker returned a 404
+                if let bollard::errors::Error::DockerResponseServerError { status_code, .. } = e {
+                    if status_code == 404 {
+                        Ok(false)
+                    } else {
+                        Err(ApplicationIsRunningError {
+                            source: Box::new(e),
+                        })
+                    }
+                } else {
+                    Err(ApplicationIsRunningError {
+                        source: Box::new(e),
+                    })
+                }
+            }
+        }
     }
 }

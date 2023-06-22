@@ -35,3 +35,24 @@ impl Error for ApplicationStopError {
         Some(self.source.as_ref())
     }
 }
+
+#[derive(Debug)]
+pub struct ApplicationIsRunningError {
+    pub source: Box<dyn Error>,
+}
+
+impl fmt::Display for ApplicationIsRunningError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Could not get the state of the application: {}",
+            self.source
+        )
+    }
+}
+
+impl Error for ApplicationIsRunningError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.source.as_ref())
+    }
+}
