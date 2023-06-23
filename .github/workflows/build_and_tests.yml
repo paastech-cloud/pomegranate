@@ -1,0 +1,71 @@
+name: Build and run tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build binary
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      name: Check out the repository
+
+    - uses: ./.github/actions/prepare_rust/
+      name: Prepare Rust toolchain
+
+    - run: cargo build --verbose --release
+      name: Build the release binary
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: pomegranate
+        path: target/release/pomegranate
+
+  unit_tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+      name: Check out the repository
+
+    - uses: ./.github/actions/prepare_rust/
+      name: Prepare Rust toolchain
+
+    - name: Run tests
+      run: cargo test --verbose
+
+  linter:
+    name: Linter
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+      name: Check out the repository
+
+    - uses: ./.github/actions/prepare_rust/
+      name: Prepare Rust toolchain
+
+    - name: Run linter
+      run: cargo clippy
+
+  formatter:
+    name: Formatter
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+      name: Check out the repository
+
+    - uses: ./.github/actions/prepare_rust/
+      name: Prepare Rust toolchain
+
+    - name: Run linter
+      run: cargo fmt --check
