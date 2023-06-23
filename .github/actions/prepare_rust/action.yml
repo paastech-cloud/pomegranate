@@ -1,0 +1,20 @@
+name: 'Prepare Rust toolchain'
+description: 'Install the Rust toolchain and set up the cache'
+
+inputs:
+  cache-shared-key:
+    description: 'The shared key for the cache action'
+    required: true
+    default: ${{ github.run_id }}
+
+runs:
+  using: "composite"
+  steps:
+    - run: rustup toolchain install stable --profile minimal -c rustfmt -c clippy
+      shell: bash
+      name: Install the Rust toolchain
+
+    - uses: Swatinem/rust-cache@v2
+      name: Use cached dependencies and artifacts
+      with:
+        shared-key: ${{ inputs.cache-shared-key }}
