@@ -187,17 +187,13 @@ impl Engine for DockerEngine {
                 // Only return an OK result if Docker returned a 404
                 if let bollard::errors::Error::DockerResponseServerError { status_code, .. } = e {
                     if status_code == 404 {
-                        Ok(false)
-                    } else {
-                        Err(Error::ApplicationStateUnavailable {
-                            source: Box::new(e),
-                        })
+                        return Ok(false);
                     }
-                } else {
-                    Err(Error::ApplicationStateUnavailable {
-                        source: Box::new(e),
-                    })
                 }
+
+                Err(Error::ApplicationStateUnavailable {
+                    source: Box::new(e),
+                })
             }
         }
     }
