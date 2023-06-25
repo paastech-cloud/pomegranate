@@ -5,3 +5,14 @@ services:
     build: ./
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
+  database:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=${POMEGRANATE_DB_PWD:?error}
+      - POSTGRES_USER=${POMEGRANATE_DB_USER?:error}
+      - POSTGRES_DB=pomegranate
+    expose:
+      - ${POMEGRANATE_DB_PORT?:error}
+    volumes:
+      - /var/lib/postgres
