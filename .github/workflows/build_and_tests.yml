@@ -16,6 +16,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       name: Check out the repository
+    
+    - uses: arduino/setup-protoc@v2
+      name: Install Protoc
 
     - uses: ./.github/actions/prepare_rust/
       name: Prepare Rust toolchain
