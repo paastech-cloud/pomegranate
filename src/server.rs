@@ -6,9 +6,8 @@ pub mod pomegrenate_proto {
 
 use pomegrenate_proto::pomegrenate_server::{Pomegrenate, PomegrenateServer};
 use pomegrenate_proto::{
-    ResponseMessage, ApplyConfigDeploymentRequest,
-    StartDeploymentRequest, RestartDeploymentRequest,
-    StopDeploymentRequest, DeleteDeploymentRequest,
+    ApplyConfigDeploymentRequest, DeleteDeploymentRequest, ResponseMessage,
+    RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
 };
 
 #[derive(Debug, Default)]
@@ -26,7 +25,7 @@ impl Pomegrenate for PomegranateGrpcService {
         let response = ResponseMessage {
             // Fill in the fields of the response message
             // This one is a template for test purposes
-            message: format!("Start deployment ! UUID : {}!", project_uuid).into()
+            message: format!("Start deployment ! UUID : {}!", project_uuid).into(),
         };
         Ok(Response::new(response))
     }
@@ -41,7 +40,7 @@ impl Pomegrenate for PomegranateGrpcService {
         let response = ResponseMessage {
             // Fill in the fields of the response message
             // This one is a template for test purposes
-            message: format!("Restart Deployment ! UUID : {}!", project_uuid).into()
+            message: format!("Restart Deployment ! UUID : {}!", project_uuid).into(),
         };
         Ok(Response::new(response))
     }
@@ -56,7 +55,7 @@ impl Pomegrenate for PomegranateGrpcService {
         let response = ResponseMessage {
             // Fill in the fields of the response message
             // This one is a template for test purposes
-            message: format!("Delete Deployment ! UUID : {}!", project_uuid).into()
+            message: format!("Delete Deployment ! UUID : {}!", project_uuid).into(),
         };
         Ok(Response::new(response))
     }
@@ -71,7 +70,7 @@ impl Pomegrenate for PomegranateGrpcService {
         let response = ResponseMessage {
             // Fill in the fields of the response message
             // This one is a template for test purposes
-            message: format!("Stop Deployment ! UUID : {}!", project_uuid).into()
+            message: format!("Stop Deployment ! UUID : {}!", project_uuid).into(),
         };
         Ok(Response::new(response))
     }
@@ -86,7 +85,7 @@ impl Pomegrenate for PomegranateGrpcService {
         let response = ResponseMessage {
             // Fill in the fields of the response message
             // This one is a template for test purposes
-            message: format!("Apply Deployment Config ! Config : {}!", config).into()
+            message: format!("Apply Deployment Config ! Config : {}!", config).into(),
         };
         Ok(Response::new(response))
     }
