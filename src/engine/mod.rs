@@ -14,4 +14,14 @@ pub trait Engine {
         project_id: &str,
         application_id: &str,
     ) -> Result<bool, Error>;
+
+    async fn restart_application(&self, app: &Application) -> Result<(), Error> {
+        // Try to stop the application
+        self.stop_application(&app.project_id, &app.application_id)
+            .await
+            .ok();
+
+        // Start the application
+        self.start_application(app).await
+    }
 }

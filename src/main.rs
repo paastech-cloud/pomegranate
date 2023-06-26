@@ -50,6 +50,20 @@ async fn main() {
             .unwrap()
     );
     thread::sleep(Duration::from_secs(3));
+
+    engine
+        .restart_application(&sample_app)
+        .await
+        .unwrap_or_default();
+    info!(
+        "is app running? {}",
+        engine
+            .is_application_running(&sample_app.project_id, &sample_app.application_id)
+            .await
+            .unwrap()
+    );
+    thread::sleep(Duration::from_secs(3));
+
     engine
         .stop_application(&sample_app.project_id, &sample_app.application_id)
         .await
