@@ -44,8 +44,7 @@ impl Engine for DockerEngine {
             app.image_tag
         );
 
-        match self
-            .docker
+        self.docker
             .create_image(
                 Some(CreateImageOptions {
                     from_image: app.image_name.clone(),
@@ -57,14 +56,9 @@ impl Engine for DockerEngine {
             )
             .try_collect::<Vec<_>>()
             .await
-        {
-            Ok(_) => (),
-            Err(e) => {
-                return Err(Error::ApplicationCannotStart {
-                    source: Box::new(e),
-                });
-            }
-        };
+            .map_err(|e| Error::ApplicationCannotStart {
+                source: Box::new(e),
+            })?;
 
         // Create the Docker container configuration
         let options = Some(CreateContainerOptions {
@@ -91,27 +85,21 @@ impl Engine for DockerEngine {
             config
         );
 
-        let container_id = match self.docker.create_container(options, config).await {
-            Ok(v) => v.id,
-            Err(e) => {
-                return Err(Error::ApplicationCannotStart {
-                    source: Box::new(e),
-                })
-            }
-        };
-
-        match self
+        let container_id = self
             .docker
+            .create_container(options, config)
+            .await
+            .map(|v| v.id)
+            .map_err(|e| Error::ApplicationCannotStart {
+                source: Box::new(e),
+            })?;
+
+        self.docker
             .start_container(&container_id, None::<StartContainerOptions<String>>)
             .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                return Err(Error::ApplicationCannotStart {
-                    source: Box::new(e),
-                })
-            }
-        }
+            .map_err(|e| Error::ApplicationCannotStart {
+                source: Box::new(e),
+            })
     }
 
     async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<(), Error> {
@@ -125,18 +113,12 @@ impl Engine for DockerEngine {
             stop_options,
         );
 
-        match self
-            .docker
+        self.docker
             .stop_container(&container_name, stop_options)
             .await
-        {
-            Ok(_) => (),
-            Err(e) => {
-                return Err(Error::ApplicationCannotStop {
-                    source: Box::new(e),
-                });
-            }
-        }
+            .map_err(|e| Error::ApplicationCannotStop {
+                source: Box::new(e),
+            })?;
 
         // Destroy the application
         let remove_options = Some(RemoveContainerOptions {
@@ -149,20 +131,12 @@ impl Engine for DockerEngine {
             remove_options,
         );
 
-        match self
-            .docker
+        self.docker
             .remove_container(&container_name, remove_options)
             .await
-        {
-            Ok(_) => (),
-            Err(e) => {
-                return Err(Error::ApplicationCannotStop {
-                    source: Box::new(e),
-                });
-            }
-        }
-
-        Ok(())
+            .map_err(|e| Error::ApplicationCannotStop {
+                source: Box::new(e),
+            })
     }
 
     async fn is_application_running(
