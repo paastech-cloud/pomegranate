@@ -76,8 +76,7 @@ impl Engine for DockerEngine {
             image: Some(app.image_name.clone()),
             env: Some(
                 app.env_variables
-                    .clone()
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| format!("{}={}", k, v))
                     .collect(),
             ),
