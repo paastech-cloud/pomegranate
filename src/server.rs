@@ -6,8 +6,8 @@ pub mod pomegrenate_proto {
 
 use pomegrenate_proto::pomegrenate_server::{Pomegrenate, PomegrenateServer};
 use pomegrenate_proto::{
-    ApplyConfigDeploymentRequest, DeleteDeploymentRequest, ResponseMessage,
-    RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
+    ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest,
+    ResponseMessage, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
 };
 
 #[derive(Debug, Default)]
@@ -71,6 +71,21 @@ impl Pomegrenate for PomegranateGrpcService {
             // Fill in the fields of the response message
             // This one is a template for test purposes
             message: format!("Stop Deployment ! UUID : {}!", project_uuid).into(),
+        };
+        Ok(Response::new(response))
+    }
+
+    async fn deployment_status(
+        &self,
+        request: Request<DeploymentStatusRequest>,
+    ) -> Result<Response<ResponseMessage>, Status> {
+        let project_uuid = request.into_inner().project_uuid;
+        // TODO: Implement the logic for stopping deployment
+
+        let response = ResponseMessage {
+            // Fill in the fields of the response message
+            // This one is a template for test purposes
+            message: format!("Deployment status ! UUID : {}!", project_uuid).into(),
         };
         Ok(Response::new(response))
     }

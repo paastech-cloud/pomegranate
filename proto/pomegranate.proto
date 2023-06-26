@@ -17,12 +17,15 @@ message StopDeploymentRequest {
   string project_uuid = 1;
 }
 
+message DeploymentStatusRequest {
+  string project_uuid = 1;
+}
+
 message ApplyConfigDeploymentRequest {
   string config = 1;
 }
 
 message ResponseMessage {
-  // Define your response message fields
     string message = 1;
 }
 
@@ -31,5 +34,6 @@ service Pomegrenate {
   rpc RestartDeployment(RestartDeploymentRequest) returns (ResponseMessage) {}
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (ResponseMessage) {}
   rpc StopDeployment(StopDeploymentRequest) returns (ResponseMessage) {}
+  rpc DeploymentStatus(DeploymentStatusRequest) returns (ResponseMessage) {}
   rpc ApplyConfigDeployment(ApplyConfigDeploymentRequest) returns (ResponseMessage) {}
 }
