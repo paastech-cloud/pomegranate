@@ -1,12 +1,6 @@
 name: 'Prepare Rust toolchain'
 description: 'Install the Rust toolchain and set up the cache'
 
-inputs:
-  cache-shared-key:
-    description: 'The shared key for the cache action'
-    required: true
-    default: ${{ github.run_id }}
-
 runs:
   using: "composite"
   steps:
@@ -16,8 +10,6 @@ runs:
 
     - uses: Swatinem/rust-cache@v2
       name: Use cached dependencies and artifacts
-      with:
-        shared-key: ${{ inputs.cache-shared-key }}
 
     - uses: arduino/setup-protoc@v2
       name: Install Protoc
