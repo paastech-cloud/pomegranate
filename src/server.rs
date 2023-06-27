@@ -1,6 +1,6 @@
 use tonic::{transport::Server, Request, Response, Status};
 
-pub mod pomegrenate_proto {
+pub mod pomegranate_proto {
     tonic::include_proto!("pomegranate");
 }
 
