@@ -45,5 +45,8 @@ async fn main() {
         postgres_db_url,
         postgres_db_port,
     );
-    println!("{:?}", database.connect());
+    
+    let connection_db = database.connect();
+
+    info!("Connecting to the PostgreSQL database: {:?}", connection_db);
 }
