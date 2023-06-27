@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bollard::container::{
     Config, CreateContainerOptions, InspectContainerOptions, RemoveContainerOptions,
@@ -11,7 +12,6 @@ use log::{info, trace};
 
 use super::Engine;
 use crate::application::ApplicationStatus;
-use crate::errors::Error;
 use crate::Application;
 
 /// # Docker execution engine
@@ -52,7 +52,7 @@ impl DockerEngine {
 
 #[async_trait]
 impl Engine for DockerEngine {
-    async fn start_application(&self, app: &Application) -> Result<(), Error> {
+    async fn start_application(&self, app: &Application) -> Result<()> {
         // Create the image
         trace!(
             "Pulling container image: {}:{}",
@@ -72,8 +72,11 @@ impl Engine for DockerEngine {
             )
             .try_collect::<Vec<_>>()
             .await
-            .map_err(|e| Error::ApplicationCannotStart {
-                source: Box::new(e),
+            .with_context(|| {
+                format!(
+                    "Failed to create the image for application {}/{}",
+                    app.project_id, app.application_id
+                )
             })?;
 
         // Create the Docker container configuration
@@ -106,19 +109,27 @@ impl Engine for DockerEngine {
             .create_container(options, config)
             .await
             .map(|v| v.id)
-            .map_err(|e| Error::ApplicationCannotStart {
-                source: Box::new(e),
+            .with_context(|| {
+                format!(
+                    "Failed to create the container for application {}/{}",
+                    app.project_id, app.application_id
+                )
             })?;
 
         self.docker
             .start_container(&container_id, None::<StartContainerOptions<String>>)
             .await
-            .map_err(|e| Error::ApplicationCannotStart {
-                source: Box::new(e),
-            })
+            .with_context(|| {
+                format!(
+                    "Failed to start the container for application {}/{}",
+                    app.project_id, app.application_id
+                )
+            })?;
+
+        Ok(())
     }
 
-    async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<(), Error> {
+    async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<()> {
         // Stop the application
         let container_name = Self::build_container_name(project_id, application_id);
         let stop_options = Some(StopContainerOptions { t: 10 });
@@ -132,8 +143,11 @@ impl Engine for DockerEngine {
         self.docker
             .stop_container(&container_name, stop_options)
             .await
-            .map_err(|e| Error::ApplicationCannotStop {
-                source: Box::new(e),
+            .with_context(|| {
+                format!(
+                    "Failed to stop the container for application {}/{}",
+                    project_id, application_id
+                )
             })?;
 
         // Destroy the application
@@ -150,16 +164,21 @@ impl Engine for DockerEngine {
         self.docker
             .remove_container(&container_name, remove_options)
             .await
-            .map_err(|e| Error::ApplicationCannotStop {
-                source: Box::new(e),
-            })
+            .with_context(|| {
+                format!(
+                    "Failed to remove the container for application {}/{}",
+                    project_id, application_id
+                )
+            })?;
+
+        Ok(())
     }
 
     async fn get_application_status(
         &self,
         project_id: &str,
         application_id: &str,
-    ) -> Result<ApplicationStatus, Error> {
+    ) -> Result<ApplicationStatus> {
         // Inspect the container
         let options = Some(InspectContainerOptions { size: false });
 
@@ -199,8 +218,11 @@ impl Engine for DockerEngine {
                     }
                 }
 
-                Err(Error::ApplicationStateUnavailable {
-                    source: Box::new(e),
+                Err(e).with_context(|| {
+                    format!(
+                        "Failed to get the status for application {}/{}",
+                        project_id, application_id
+                    )
                 })
             }
         }

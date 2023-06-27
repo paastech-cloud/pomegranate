@@ -1,6 +1,5 @@
 mod application;
 mod engine;
-mod errors;
 
 use log::info;
 

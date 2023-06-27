@@ -1,9 +1,9 @@
 pub mod docker_engine;
 
+use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::application::{Application, ApplicationStatus};
-use crate::errors::Error;
 
 /// # Execution engine
 /// A trait for an execution engine that can start PaaS applications.
@@ -31,7 +31,7 @@ pub trait Engine {
     /// let engine = MyEngine::new();
     /// engine.start_application(&app).await.unwrap();
     /// ```
-    async fn start_application(&self, app: &Application) -> Result<(), Error>;
+    async fn start_application(&self, app: &Application) -> Result<()>;
 
     /// # Stop application
     /// Stop a PaaS application.
@@ -48,7 +48,7 @@ pub trait Engine {
     /// let engine = MyEngine::new();
     /// engine.stop_application(String::from("test"), String::from("webapp")).await.unwrap();
     /// ```
-    async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<(), Error>;
+    async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<()>;
 
     /// # Get application status
     /// Get the running status of a PaaS application.
@@ -71,7 +71,7 @@ pub trait Engine {
         &self,
         project_id: &str,
         application_id: &str,
-    ) -> Result<ApplicationStatus, Error>;
+    ) -> Result<ApplicationStatus>;
 
     /// # Restart application
     /// Restart a PaaS application.
@@ -98,7 +98,7 @@ pub trait Engine {
     /// let engine = MyEngine::new();
     /// engine.restart_application(&app).await.unwrap();
     /// ```
-    async fn restart_application(&self, app: &Application) -> Result<(), Error> {
+    async fn restart_application(&self, app: &Application) -> Result<()> {
         // Try to stop the application
         self.stop_application(&app.project_id, &app.application_id)
             .await
