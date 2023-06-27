@@ -5,14 +5,27 @@ services:
     build: ./
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
+    environment:
+      - POMEGRANATE_DB_URL=database
+      - POMEGRANATE_DB_PORT=5432
+      - POMEGRANATE_DB_USER=test
+      - POMEGRANATE_DB_PWD=test
+    depends_on:
+      - database
+
   database:
     image: postgres:latest
     restart: always
     environment:
-      - POSTGRES_PASSWORD=${POMEGRANATE_DB_PWD:?error}
-      - POSTGRES_USER=${POMEGRANATE_DB_USER?:error}
+      - POSTGRES_PASSWORD=test
+      - POSTGRES_USER=test
       - POSTGRES_DB=pomegranate
     expose:
-      - ${POMEGRANATE_DB_PORT?:error}
+      - 5432
     volumes:
-      - /var/lib/postgres
+      - ./postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d pomegranate"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
