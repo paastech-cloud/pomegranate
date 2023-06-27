@@ -1,0 +1,5 @@
+services:
+  database:
+    # TODO : remove me
+    ports:
+      - ${POMEGRANATE_DB_PORT?:error}:${POMEGRANATE_DB_PORT?:error}
