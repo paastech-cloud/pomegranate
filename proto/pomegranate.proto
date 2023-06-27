@@ -26,10 +26,10 @@ message ApplyConfigDeploymentRequest {
 }
 
 message ResponseMessage {
-    string message = 1;
+  string message = 1;
 }
 
-service Pomegrenate {
+service Pomegranate {
   rpc StartDeployment(StartDeploymentRequest) returns (ResponseMessage) {}
   rpc RestartDeployment(RestartDeploymentRequest) returns (ResponseMessage) {}
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (ResponseMessage) {}
