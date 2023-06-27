@@ -17,6 +17,20 @@ pub trait Engine {
     ///
     /// # Returns
     /// - Nothing, wrapped in a Result.
+    ///
+    /// # Example
+    /// ```
+    /// let app = Application {
+    ///     application_id: String::from("webapp"),
+    ///     project_id: String::from("test"),
+    ///     image_name: String::from("nginx"),
+    ///     image_tag: String::from("latest"),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let engine = MyEngine::new();
+    /// engine.start_application(&app).await.unwrap();
+    /// ```
     async fn start_application(&self, app: &Application) -> Result<(), Error>;
 
     /// # Stop application
@@ -28,6 +42,12 @@ pub trait Engine {
     ///
     /// # Returns
     /// - Nothing, wrapped in a Result.
+    ///
+    /// # Example
+    /// ```
+    /// let engine = MyEngine::new();
+    /// engine.stop_application(String::from("test"), String::from("webapp")).await.unwrap();
+    /// ```
     async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<(), Error>;
 
     /// # Is application running
@@ -39,6 +59,14 @@ pub trait Engine {
     ///
     /// # Returns
     /// - Whether the application is running, wrapped in a Result.
+    ///
+    /// # Example
+    /// ```
+    /// let engine = MyEngine::new();
+    /// let running = engine.is_application_running(String::from("test"), String::from("webapp"))
+    ///     .await
+    ///     .unwrap();
+    /// ```
     async fn is_application_running(
         &self,
         project_id: &str,
@@ -48,11 +76,28 @@ pub trait Engine {
     /// # Restart application
     /// Restart a PaaS application.
     ///
+    /// This function simply tries to stop the PaaS application, ignoring any failure to do so,
+    /// and then start it again.
+    ///
     /// # Arguments
     /// - [Application](Application) struct.
     ///
     /// # Returns
     /// - Nothing, wrapped in a Result.
+    ///
+    /// # Example
+    /// ```
+    /// let app = Application {
+    ///     application_id: String::from("webapp"),
+    ///     project_id: String::from("test"),
+    ///     image_name: String::from("nginx"),
+    ///     image_tag: String::from("latest"),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let engine = MyEngine::new();
+    /// engine.restart_application(&app).await.unwrap();
+    /// ```
     async fn restart_application(&self, app: &Application) -> Result<(), Error> {
         // Try to stop the application
         self.stop_application(&app.project_id, &app.application_id)

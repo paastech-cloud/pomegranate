@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 /// # PaaS application
 /// Information about an application of the PaaS.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Application {
     /// ID of the project that the application is a part of.
     pub project_id: String,
