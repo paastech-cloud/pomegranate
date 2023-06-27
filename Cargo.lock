@@ -655,7 +655,7 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 [[package]]
 name = "paastech-proto"
 version = "0.1.0"
-source = "git+https://github.com/paastech-cloud/proto.git?rev=fb37d9f#fb37d9f0f383fdef46774641e54a7f48bf45b8fc"
+source = "git+https://github.com/paastech-cloud/proto.git#3f1372471c73e01fd7f2ed14b9e927b3f251e1bc"
 dependencies = [
  "prost",
  "tonic",
@@ -721,7 +721,6 @@ dependencies = [
  "prost",
  "tokio",
  "tonic",
- "tonic-build",
 ]
 
 [[package]]

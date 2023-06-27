@@ -12,4 +12,4 @@ log = "0.4.19"
 tonic = "0.9.2"
 prost = "0.11"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
-paastech-proto = { git = "https://github.com/paastech-cloud/proto.git", rev = "fb37d9f" }
+paastech-proto = { git = "https://github.com/paastech-cloud/proto.git" }

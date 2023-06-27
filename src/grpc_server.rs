@@ -1,17 +1,17 @@
 use log::info;
 use tonic::{transport::Server, Request, Response, Status};
 
-use paastech_proto::pomegranate_proto::pomegranate_server::{Pomegranate, PomegranateServer};
-use paastech_proto::pomegranate_proto::{
+use paastech_proto::pomegranate::pomegranate_server::{Pomegranate, PomegranateServer};
+use paastech_proto::pomegranate::{
     ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest,
     ResponseMessage, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
 };
 
 #[derive(Debug, Default)]
-pub struct PomegranateGrpcService {}
+pub struct PomegranateGrpcServer {}
 
 #[tonic::async_trait]
-impl Pomegranate for PomegranateGrpcService {
+impl Pomegranate for PomegranateGrpcServer {
     async fn start_deployment(
         &self,
         request: Request<StartDeploymentRequest>,
@@ -103,15 +103,15 @@ impl Pomegranate for PomegranateGrpcService {
     }
 }
 
-pub(crate) async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse().unwrap();
 
-    let pomegranate_grpc_service = PomegranateGrpcService::default();
+    let pomegranate_grpc_server = PomegranateGrpcServer::default();
 
     info!("gRPC server started on {}", addr);
 
     Server::builder()
-        .add_service(PomegranateServer::new(pomegranate_grpc_service))
+        .add_service(PomegranateServer::new(pomegranate_grpc_server))
         .serve(addr)
         .await?;
 

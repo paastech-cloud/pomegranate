@@ -1,6 +1,6 @@
 mod application;
 mod engine;
-mod server;
+mod grpc_server;
 
 use log::{error, info};
 use std::collections::HashMap;
@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
 
     engine.start_application(&sample_app);
 
-    match server::start_server().await {
+    match grpc_server::start_server().await {
         Ok(_) => Ok(()),
         Err(e) => {
             error!("Failed to start gRPC server: {}", e);
