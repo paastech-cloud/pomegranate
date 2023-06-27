@@ -2,7 +2,7 @@ pub mod docker_engine;
 
 use async_trait::async_trait;
 
-use crate::application::Application;
+use crate::application::{Application, ApplicationStatus};
 use crate::errors::Error;
 
 /// # Execution engine
@@ -50,7 +50,7 @@ pub trait Engine {
     /// ```
     async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<(), Error>;
 
-    /// # Is application running
+    /// # Get application status
     /// Get the running status of a PaaS application.
     ///
     /// # Arguments
@@ -58,20 +58,20 @@ pub trait Engine {
     /// - ID of the application.
     ///
     /// # Returns
-    /// - Whether the application is running, wrapped in a Result.
+    /// - The running status of the application, wrapped in a Result.
     ///
     /// # Example
     /// ```
     /// let engine = MyEngine::new();
-    /// let running = engine.is_application_running(String::from("test"), String::from("webapp"))
+    /// let running = engine.get_application_status(String::from("test"), String::from("webapp"))
     ///     .await
     ///     .unwrap();
     /// ```
-    async fn is_application_running(
+    async fn get_application_status(
         &self,
         project_id: &str,
         application_id: &str,
-    ) -> Result<bool, Error>;
+    ) -> Result<ApplicationStatus, Error>;
 
     /// # Restart application
     /// Restart a PaaS application.

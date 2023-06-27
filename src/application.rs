@@ -19,3 +19,24 @@ pub struct Application {
     /// Key-value map of the environment variables to set in the container.
     pub env_variables: HashMap<String, String>,
 }
+
+/// # PaaS application status
+/// Running status of a PaaS application.
+#[derive(Debug, Default)]
+pub enum ApplicationStatus {
+    /// The application status couldn't be retrieved.
+    #[default]
+    Unknown,
+
+    /// The application is starting or restarting.
+    Starting,
+
+    /// The application is running.
+    Running,
+
+    /// The application is stopping.
+    Stopping,
+
+    /// The application has exited, is dead or is paused.
+    Stopped,
+}

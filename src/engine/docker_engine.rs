@@ -4,11 +4,13 @@ use bollard::container::{
     StartContainerOptions, StopContainerOptions,
 };
 use bollard::image::CreateImageOptions;
+use bollard::service::ContainerStateStatusEnum;
 use bollard::Docker;
 use futures::stream::TryStreamExt;
 use log::{info, trace};
 
 use super::Engine;
+use crate::application::ApplicationStatus;
 use crate::errors::Error;
 use crate::Application;
 
@@ -153,11 +155,11 @@ impl Engine for DockerEngine {
             })
     }
 
-    async fn is_application_running(
+    async fn get_application_status(
         &self,
         project_id: &str,
         application_id: &str,
-    ) -> Result<bool, Error> {
+    ) -> Result<ApplicationStatus, Error> {
         // Inspect the container
         let options = Some(InspectContainerOptions { size: false });
 
@@ -169,12 +171,31 @@ impl Engine for DockerEngine {
             )
             .await
         {
-            Ok(_) => Ok(true),
+            Ok(v) => {
+                // Try to get the state of the container
+                if let Some(state) = v.state {
+                    if let Some(status) = state.status {
+                        return match status {
+                            ContainerStateStatusEnum::CREATED => Ok(ApplicationStatus::Starting),
+                            ContainerStateStatusEnum::RUNNING => Ok(ApplicationStatus::Running),
+                            ContainerStateStatusEnum::PAUSED => Ok(ApplicationStatus::Stopped),
+                            ContainerStateStatusEnum::RESTARTING => Ok(ApplicationStatus::Starting),
+                            ContainerStateStatusEnum::REMOVING => Ok(ApplicationStatus::Stopping),
+                            ContainerStateStatusEnum::EXITED => Ok(ApplicationStatus::Stopped),
+                            ContainerStateStatusEnum::DEAD => Ok(ApplicationStatus::Stopped),
+                            _ => Ok(ApplicationStatus::Unknown),
+                        };
+                    }
+                }
+
+                // Couldn't get the status of the application
+                Ok(ApplicationStatus::Unknown)
+            }
             Err(e) => {
                 // Only return an OK result if Docker returned a 404
                 if let bollard::errors::Error::DockerResponseServerError { status_code, .. } = e {
                     if status_code == 404 {
-                        return Ok(false);
+                        return Ok(ApplicationStatus::Stopped);
                     }
                 }
 
