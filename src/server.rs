@@ -107,7 +107,6 @@ impl Pomegranate for PomegranateGrpcService {
     }
 }
 
-#[tokio::main]
 pub(crate) async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse().unwrap();
 

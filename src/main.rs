@@ -4,12 +4,14 @@ mod server;
 
 use log::{error, info};
 use std::collections::HashMap;
+use std::error;
 
 use crate::application::Application;
 use crate::engine::docker_engine::DockerEngine;
 use crate::engine::engine::Engine;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn error::Error>> {
     // Start the application
     env_logger::builder()
         .filter(None, log::LevelFilter::Info)
@@ -35,10 +37,11 @@ fn main() {
 
     engine.start_application(&sample_app);
 
-    match server::start_server() {
-        Ok(_) => {}
+    match server::start_server().await {
+        Ok(_) => Ok(()),
         Err(e) => {
             error!("Failed to start gRPC server: {}", e);
+            Err(e)
         }
-    };
+    }
 }
