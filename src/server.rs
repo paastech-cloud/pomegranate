@@ -1,12 +1,8 @@
 use log::info;
 use tonic::{transport::Server, Request, Response, Status};
 
-pub mod pomegranate_proto {
-    tonic::include_proto!("pomegranate");
-}
-
-use pomegranate_proto::pomegranate_server::{Pomegranate, PomegranateServer};
-use pomegranate_proto::{
+use paastech_proto::pomegranate_proto::pomegranate_server::{Pomegranate, PomegranateServer};
+use paastech_proto::pomegranate_proto::{
     ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest,
     ResponseMessage, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
 };
