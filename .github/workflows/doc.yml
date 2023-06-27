@@ -1,0 +1,50 @@
+name: Build and deploy Rust documentation
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy documentation
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+        name: Check out the repository
+
+      - uses: actions/configure-pages@v3
+        name: Setup GitHub Pages
+
+      - uses: ./.github/actions/prepare_rust/
+        name: Prepare Rust toolchain
+
+      - run: cargo doc --no-deps
+        name: Build the documentation
+
+      - run: chmod -c -R +rX 'target/doc'
+        name: Fix file permissions
+        shell: sh
+
+      - uses: actions/upload-pages-artifact@v1
+        name: Upload GitHub Pages artifact
+        with:
+          path: 'target/doc/'
+
+      - uses: actions/deploy-pages@v2
+        name: Deploy to GitHub Pages
+        id: deployment
