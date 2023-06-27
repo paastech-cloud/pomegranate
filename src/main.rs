@@ -2,7 +2,7 @@ mod application;
 mod engine;
 mod server;
 
-use log::info;
+use log::{error, info};
 use std::collections::HashMap;
 
 use crate::application::Application;
@@ -35,11 +35,10 @@ fn main() {
 
     engine.start_application(&sample_app);
 
-    let _ = match server::start_server() {
-        Ok(server) => server,
+    match server::start_server() {
+        Ok(_) => {}
         Err(e) => {
-            info!("Failed to start gRPC server: {}", e);
-            return;
+            error!("Failed to start gRPC server: {}", e);
         }
     };
 }
