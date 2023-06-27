@@ -12,11 +12,16 @@ use super::Engine;
 use crate::errors::Error;
 use crate::Application;
 
+/// # Docker execution engine
+/// Implementation of an execution engine that uses Docker as a backend.
 pub struct DockerEngine {
+    /// The Docker driver.
     docker: Docker,
 }
 
 impl DockerEngine {
+    /// # New
+    /// Create an instance of the Docker execution engine.
     pub fn new() -> Self {
         // Attempt to connect to the Docker engine
         info!("Creating new Docker engine");
@@ -29,6 +34,15 @@ impl DockerEngine {
         DockerEngine { docker }
     }
 
+    /// # Build container name
+    /// Construct the name of the container associated with a PaaS application.
+    ///
+    /// # Arguments
+    /// - ID of the project that the application is a part of.
+    /// - ID of the application.
+    ///
+    /// # Returns
+    /// - The name of the associated container.
     fn build_container_name(project_id: &str, application_id: &str) -> String {
         format!("client-app_{}_{}", project_id, application_id)
     }
