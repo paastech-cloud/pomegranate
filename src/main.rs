@@ -2,13 +2,12 @@ mod application;
 mod engine;
 
 use log::info;
-use std::collections::HashMap;
 
 use crate::application::Application;
 use crate::engine::docker_engine::DockerEngine;
-use crate::engine::engine::Engine;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // Start the application
     env_logger::builder()
         .filter(None, log::LevelFilter::Info)
@@ -23,14 +22,4 @@ fn main() {
 
     // Init the Docker engine
     let engine = DockerEngine::new();
-
-    // TODO: Remove me
-    // Start a sample application
-    let sample_app = Application {
-        project_id: String::from("test"),
-        image_name: String::from("nginx"),
-        env_variables: HashMap::from([(String::from("VERBOSITY"), String::from("5"))]),
-    };
-
-    engine.start_application(&sample_app);
 }
