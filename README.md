@@ -3,6 +3,8 @@ The deployment manager for the PaaSTech Platform-as-a-Service.
 
 This service manages deploying applications for the PaaS clients in an execution engine, such as Docker or Kubernetes.
 
+Documentation is available [here](https://paastech-cloud.github.io/pomegranate/pomegranate/).
+
 ## Run this application
 To run Pomegranate, you must first [install the Rust toolchain](https://www.rust-lang.org/tools/install) for your platform.
 

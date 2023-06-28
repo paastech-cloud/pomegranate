@@ -27,16 +27,6 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     // Init the Docker engine
     let engine = DockerEngine::new();
 
-    // TODO: Remove me
-    // Start a sample application
-    let sample_app = Application {
-        project_id: String::from("test"),
-        image_name: String::from("nginx"),
-        env_variables: HashMap::from([(String::from("VERBOSITY"), String::from("5"))]),
-    };
-
-    engine.start_application(&sample_app);
-
     match grpc_server::start_server().await {
         Ok(_) => Ok(()),
         Err(e) => {
