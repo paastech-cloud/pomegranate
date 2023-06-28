@@ -1,14 +1,14 @@
 use log::info;
 use tonic::{transport::Server, Request, Response, Status};
 
+use crate::application::Application;
+use crate::engine::docker_engine::DockerEngine;
+use crate::engine::Engine;
 use paastech_proto::pomegranate::pomegranate_server::{Pomegranate, PomegranateServer};
 use paastech_proto::pomegranate::{
     ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest,
     ResponseMessage, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
 };
-use crate::application::Application;
-use crate::engine::docker_engine::DockerEngine;
-use crate::engine::Engine;
 
 pub struct PomegranateGrpcServer {
     docker_engine: DockerEngine,
@@ -110,9 +110,7 @@ impl Pomegranate for PomegranateGrpcServer {
 pub async fn start_server(docker_engine: DockerEngine) -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse().unwrap();
 
-    let pomegranate_grpc_server = PomegranateGrpcServer {
-        docker_engine,
-    };
+    let pomegranate_grpc_server = PomegranateGrpcServer { docker_engine };
 
     info!("gRPC server started on {}", addr);
 
