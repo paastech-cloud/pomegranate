@@ -8,7 +8,6 @@ use std::error;
 
 use crate::application::Application;
 use crate::engine::docker_engine::DockerEngine;
-use crate::engine::engine::Engine;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn error::Error>> {
@@ -27,7 +26,7 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     // Init the Docker engine
     let engine = DockerEngine::new();
 
-    match grpc_server::start_server().await {
+    match grpc_server::start_server(engine).await {
         Ok(_) => Ok(()),
         Err(e) => {
             error!("Failed to start gRPC server: {}", e);
