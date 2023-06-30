@@ -1,9 +1,9 @@
 mod application;
+mod db;
 mod engine;
 mod grpc_server;
 
 use log::{error, info};
-use std::collections::HashMap;
 use std::error;
 
 use crate::application::Application;
@@ -26,7 +26,9 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     // Init the Docker engine
     let engine = DockerEngine::new();
 
-    match grpc_server::start_server(engine).await {
+    let db = db::Db::new();
+
+    match grpc_server::start_server(engine, db).await {
         Ok(_) => Ok(()),
         Err(e) => {
             error!("Failed to start gRPC server: {}", e);
