@@ -1,5 +1,3 @@
-use dotenv::dotenv;
-
 pub struct DatabaseConfig {
     pub db_user: String,
     pub db_passwd: String,
@@ -9,9 +7,6 @@ pub struct DatabaseConfig {
 
 impl DatabaseConfig{
     pub fn new() -> DatabaseConfig {
-
-        // Load env variables
-        dotenv().ok();
 
         // Setting up the env variables for postgres db
         let postgres_db_user =
