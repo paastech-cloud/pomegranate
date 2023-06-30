@@ -20,7 +20,6 @@ pub struct PomegranateGrpcServer {
 
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
-
     /// # Start Deployment
     /// Start a deployment from its uuid.
     /// # Arguments
