@@ -11,7 +11,6 @@ use crate::engine::docker_engine::DockerEngine;
 
 #[tokio::main]
 async fn main() {
-
     // Start the application
     env_logger::builder()
         .filter(None, log::LevelFilter::Info)
@@ -30,7 +29,7 @@ async fn main() {
     let mut database = Database::new().await;
 
     info!(
-       "Connecting to the PostgreSQL database: {:?}",
-       database.create_table_accounts().await
+        "Connecting to the PostgreSQL database: {:?}",
+        database.create_table_accounts().await
     );
 }
