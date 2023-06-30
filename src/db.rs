@@ -1,6 +1,6 @@
 use tokio_postgres::{Client, Error, NoTls};
 
-use crate::config::DatabaseConfig;
+use crate::config::database_config::DatabaseConfig;
 
 pub struct Database {
     client: Client,
@@ -19,7 +19,9 @@ impl Database {
             configuration.db_port
         );
 
-        let (client, connection) = tokio_postgres::connect(&connection_link, NoTls).await.unwrap();
+        let (client, connection) = tokio_postgres::connect(&connection_link, NoTls)
+            .await
+            .unwrap();
 
         tokio::spawn(async move {
             if let Err(e) = connection.await {
@@ -33,7 +35,7 @@ impl Database {
     pub async fn create_table_accounts(&mut self) -> Result<(), Error> {
         self.client
             .query(
-                "CREATE TABLE SALUTE (
+                "CREATE TABLE IF NOT EXISTS ACCOUNTS (
             user_id serial PRIMARY KEY,
             username VARCHAR ( 50 ) UNIQUE NOT NULL,
             password VARCHAR ( 50 ) NOT NULL,
