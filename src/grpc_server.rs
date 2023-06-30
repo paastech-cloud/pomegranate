@@ -11,6 +11,8 @@ use paastech_proto::pomegranate::{
     ResponseMessage, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
 };
 
+/// # Pomegranate gRPC server
+/// The gRPC server that implements the Pomegranate routes.
 pub struct PomegranateGrpcServer {
     docker_engine: DockerEngine,
     db: Db,
@@ -18,6 +20,13 @@ pub struct PomegranateGrpcServer {
 
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
+
+    /// # Start Deployment
+    /// Start a deployment from its uuid.
+    /// # Arguments
+    /// The request containing the uuid of the deployment to start.
+    /// # Returns
+    /// Nothing, wrapped in a Result.
     async fn start_deployment(
         &self,
         request: Request<StartDeploymentRequest>,
@@ -60,6 +69,12 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
+    /// # Delete Deployment
+    /// Delete a configuration to a deployment from its uuid.
+    /// # Arguments
+    /// The request containing the uuid of the deployment to delete.
+    /// # Returns
+    /// Nothing, wrapped in a Result.
     async fn delete_deployment(
         &self,
         request: Request<DeleteDeploymentRequest>,
@@ -88,6 +103,12 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
+    /// # Stop Deployment
+    /// Stop a deployment from its uuid.
+    /// # Arguments
+    /// The request containing the uuid of the deployment to stop.
+    /// # Returns
+    /// Nothing, wrapped in a Result.
     async fn stop_deployment(
         &self,
         request: Request<StopDeploymentRequest>,
@@ -113,6 +134,12 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
+    /// # Deployment Status
+    /// Get the status of a deployment from its uuid.
+    /// # Arguments
+    /// The request containing the uuid of the deployment to get the status of.
+    /// # Returns
+    /// Nothing, wrapped in a Result.
     async fn deployment_status(
         &self,
         request: Request<DeploymentStatusRequest>,
@@ -133,6 +160,12 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
+    /// # Apply Config Deployment
+    /// Apply a configuration to a deployment from its uuid.
+    /// # Arguments
+    /// The request containing the uuid of the deployment to apply the configuration to, as well as its configuration in JSON format.
+    /// # Returns
+    /// Nothing, wrapped in a Result.
     async fn apply_config_deployment(
         &self,
         request: Request<ApplyConfigDeploymentRequest>,
@@ -176,6 +209,32 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 }
 
+/// # Get App
+/// Get an application from its uuid.
+/// # Arguments
+/// - The database reference to use to get the deployments.
+/// - The uuid of the application to get.
+/// # Returns
+/// The application.
+fn get_app(db: &Db, uuid: String) -> Application {
+    let deployment_join_project = db.get_deployment_join_project(uuid.clone());
+
+    Application {
+        application_id: uuid.clone(),
+        project_id: deployment_join_project.project_uuid,
+        image_name: format!("{}/{}", deployment_join_project.user_id, uuid),
+        image_tag: String::from("latest"),
+        ..Default::default()
+    }
+}
+
+/// # Start Server
+/// Start the gRPC server.
+/// # Arguments
+/// - The Docker engine to use to manage containers.
+/// - The database reference to use to get the deployments.
+/// # Returns
+/// Nothing, wrapped in a Result.
 pub async fn start_server(
     docker_engine: DockerEngine,
     db: Db,
@@ -192,16 +251,4 @@ pub async fn start_server(
         .await?;
 
     Ok(())
-}
-
-fn get_app(db: &Db, uuid: String) -> Application {
-    let deployment_join_project = db.get_deployment_join_project(uuid.clone());
-
-    Application {
-        application_id: uuid.clone(),
-        project_id: deployment_join_project.project_uuid,
-        image_name: format!("{}/{}", deployment_join_project.user_id, uuid),
-        image_tag: String::from("latest"),
-        ..Default::default()
-    }
 }
