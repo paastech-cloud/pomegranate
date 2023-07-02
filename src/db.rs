@@ -1,5 +1,5 @@
 use crate::application::Application;
-use chrono::{Utc};
+use chrono::Utc;
 use std::collections::HashMap;
 use std::fmt::Error;
 
