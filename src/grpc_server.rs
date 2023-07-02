@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use log::info;
+use std::collections::HashMap;
 use tonic::{transport::Server, Request, Response, Status};
 
 use crate::db::Db;
@@ -237,11 +237,7 @@ impl Pomegranate for PomegranateGrpcServer {
         };
 
         let message = match self.docker_engine.restart_application(&app).await {
-            Ok(_) => match self
-                .db
-                .set_deployment_config(deployment_uuid, config)
-                .await
-            {
+            Ok(_) => match self.db.set_deployment_config(deployment_uuid, config).await {
                 Ok(_) => {
                     format!("Applied config to application {}", app.project_id)
                 }
