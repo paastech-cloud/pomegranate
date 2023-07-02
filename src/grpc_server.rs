@@ -1,7 +1,7 @@
+use std::collections::HashMap;
 use log::info;
 use tonic::{transport::Server, Request, Response, Status};
 
-use crate::application::Application;
 use crate::db::Db;
 use crate::engine::docker_engine::DockerEngine;
 use crate::engine::Engine;
@@ -32,14 +32,22 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = get_app(&self.db, deployment_uuid);
+        let app = match self.db.get_app(deployment_uuid.clone()) {
+            Ok(app) => app,
+            Err(e) => {
+                return Err(Status::not_found(e.to_string()));
+            }
+        };
 
         let message: String = match self.docker_engine.start_application(&app).await {
             Ok(_) => {
                 format!("Started application {}", app.project_id)
             }
             Err(e) => {
-                format!("Failed to start application {}: {}", app.project_id, e)
+                return Err(Status::internal(format!(
+                    "Failed to start application {}: {}",
+                    app.project_id, e
+                )));
             }
         };
 
@@ -53,14 +61,22 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = get_app(&self.db, deployment_uuid);
+        let app = match self.db.get_app(deployment_uuid.clone()) {
+            Ok(app) => app,
+            Err(e) => {
+                return Err(Status::not_found(e.to_string()));
+            }
+        };
 
         let message: String = match self.docker_engine.restart_application(&app).await {
             Ok(_) => {
                 format!("Restarted application {}", app.project_id)
             }
             Err(e) => {
-                format!("Failed to restart application {}: {}", app.project_id, e)
+                return Err(Status::internal(format!(
+                    "Failed to restart application {}: {}",
+                    app.project_id, e
+                )));
             }
         };
 
@@ -80,7 +96,12 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = get_app(&self.db, deployment_uuid);
+        let app = match self.db.get_app(deployment_uuid.clone()) {
+            Ok(app) => app,
+            Err(e) => {
+                return Err(Status::not_found(e.to_string()));
+            }
+        };
 
         let message: String = match self
             .docker_engine
@@ -92,7 +113,10 @@ impl Pomegranate for PomegranateGrpcServer {
                 format!("Stopped application {}. It was not deleted", app.project_id)
             }
             Err(e) => {
-                format!("Failed to delete application {}: {}", app.project_id, e)
+                return Err(Status::internal(format!(
+                    "Failed to delete application {}: {}",
+                    app.project_id, e
+                )));
             }
         };
 
@@ -114,7 +138,12 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = get_app(&self.db, deployment_uuid);
+        let app = match self.db.get_app(deployment_uuid.clone()) {
+            Ok(app) => app,
+            Err(e) => {
+                return Err(Status::not_found(e.to_string()));
+            }
+        };
 
         let message: String = match self
             .docker_engine
@@ -125,7 +154,10 @@ impl Pomegranate for PomegranateGrpcServer {
                 format!("Stopped application {}", app.project_id)
             }
             Err(e) => {
-                format!("Failed to stop application {}: {}", app.project_id, e)
+                return Err(Status::internal(format!(
+                    "Failed to stop application {}: {}",
+                    app.project_id, e
+                )));
             }
         };
 
@@ -145,15 +177,26 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = get_app(&self.db, deployment_uuid);
+        let app = match self.db.get_app(deployment_uuid.clone()) {
+            Ok(app) => app,
+            Err(e) => {
+                return Err(Status::not_found(e.to_string()));
+            }
+        };
 
-        let status = self
+        let message = match self
             .docker_engine
             .get_application_status(app.project_id.as_str(), app.application_id.as_str())
             .await
-            .unwrap();
-
-        let message = format!("Application {} is {:?}", app.project_id, status);
+        {
+            Ok(status) => format!("Application {} is {:?}", app.project_id, status),
+            Err(e) => {
+                return Err(Status::internal(format!(
+                    "Failed to get status of application {}: {}",
+                    app.project_id, e
+                )));
+            }
+        };
 
         let response = ResponseMessage { message };
         Ok(Response::new(response))
@@ -173,57 +216,52 @@ impl Pomegranate for PomegranateGrpcServer {
         let config = request.config;
         let deployment_uuid = request.deployment_uuid;
 
-        let deployment_join_project = &self.db.get_deployment_join_project(deployment_uuid.clone());
-
-        let app = Application {
-            application_id: deployment_uuid.clone(),
-            project_id: deployment_join_project.project_uuid.clone(),
-            image_name: format!("{}/{}", deployment_join_project.user_id, deployment_uuid),
-            image_tag: String::from("latest"),
-            env_variables: serde_json::from_str(&config).unwrap(),
+        let hashmap_config: HashMap<String, String> = match serde_json::from_str(&config) {
+            Ok(config) => config,
+            Err(e) => {
+                return Err(Status::invalid_argument(format!(
+                    "Failed to parse json config: {}",
+                    e
+                )));
+            }
         };
 
-        let message: String = match self.docker_engine.restart_application(&app).await {
-            Ok(_) => match self.db.set_deployment_config(deployment_uuid, config).await {
+        let app = match self
+            .db
+            .get_custom_app(deployment_uuid.clone(), hashmap_config.clone())
+        {
+            Ok(app) => app,
+            Err(e) => {
+                return Err(Status::not_found(e.to_string()));
+            }
+        };
+
+        let message = match self.docker_engine.restart_application(&app).await {
+            Ok(_) => match self
+                .db
+                .set_deployment_config(deployment_uuid, config)
+                .await
+            {
                 Ok(_) => {
                     format!("Applied config to application {}", app.project_id)
                 }
                 Err(e) => {
-                    format!(
+                    return Err(Status::data_loss(format!(
                         "Failed to save config to database {}: {}",
                         app.project_id, e
-                    )
+                    )));
                 }
             },
             Err(e) => {
-                format!(
+                return Err(Status::internal(format!(
                     "Failed to apply config to application {}: {}",
                     app.project_id, e
-                )
+                )));
             }
         };
 
         let response = ResponseMessage { message };
         Ok(Response::new(response))
-    }
-}
-
-/// # Get App
-/// Get an application from its uuid.
-/// # Arguments
-/// - The database reference to use to get the deployments.
-/// - The uuid of the application to get.
-/// # Returns
-/// The application.
-fn get_app(db: &Db, uuid: String) -> Application {
-    let deployment_join_project = db.get_deployment_join_project(uuid.clone());
-
-    Application {
-        application_id: uuid.clone(),
-        project_id: deployment_join_project.project_uuid,
-        image_name: format!("{}/{}", deployment_join_project.user_id, uuid),
-        image_tag: String::from("latest"),
-        ..Default::default()
     }
 }
 
@@ -238,7 +276,7 @@ pub async fn start_server(
     docker_engine: DockerEngine,
     db: Db,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse().unwrap();
+    let addr = "[::1]:50051".parse()?;
 
     let pomegranate_grpc_server = PomegranateGrpcServer { docker_engine, db };
 

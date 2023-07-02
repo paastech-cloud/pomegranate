@@ -28,11 +28,8 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
 
     let db = db::Db::new();
 
-    match grpc_server::start_server(engine, db).await {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            error!("Failed to start gRPC server: {}", e);
-            Err(e)
-        }
-    }
+    grpc_server::start_server(engine, db).await.map_err(|e| {
+        error!("Failed to start gRPC server: {}", e);
+        e
+    })
 }
