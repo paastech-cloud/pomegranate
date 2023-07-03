@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bollard::container::{
-    Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, RemoveContainerOptions,
-    StartContainerOptions, StatsOptions, StopContainerOptions,
+    Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, NetworkingConfig,
+    RemoveContainerOptions, StartContainerOptions, StatsOptions, StopContainerOptions,
 };
 use bollard::image::{CreateImageOptions, RemoveImageOptions};
 use bollard::service::ContainerStateStatusEnum;
@@ -14,6 +14,7 @@ use log::{info, trace};
 
 use super::Engine;
 use crate::application::{ApplicationStats, ApplicationStatus};
+use crate::config::traefik_config::TRAEFIK_CONFIG;
 use crate::Application;
 
 /// # Docker execution engine
@@ -115,6 +116,23 @@ impl Engine for DockerEngine {
                 format!(
                     "Failed to create the container for application {}/{}",
                     app.project_id, app.application_id
+                )
+            })?;
+
+        // Once the container is created, connect it to the traefik network
+        self.docker
+            .connect_network(
+                &TRAEFIK_CONFIG.network_name,
+                ConnectNetworkOptions {
+                    container: &container_id,
+                    endpoint_config: EndpointSettings::default(),
+                },
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to attach the container for application {}/{} to network {}",
+                    app.project_id, app.application_id, &TRAEFIK_CONFIG.network_name
                 )
             })?;
 
