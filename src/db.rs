@@ -62,6 +62,15 @@ impl Db {
     }
 }
 
+/// # Deployment
+/// A Deployment is a struct that contains the information about a deployment as per the database schema.
+/// # Fields
+/// - `uuid`: The uuid of the deployment.
+/// - `name`: The name of the deployment.
+/// - `config`: The configuration of the deployment.
+/// - `created_at`: The date at which the deployment was created.
+/// - `updated_at`: The date at which the deployment was last updated.
+/// - `project_uuid`: The uuid of the project that owns the deployment.
 pub struct Deployment {
     pub uuid: String,
     pub name: String,
@@ -71,6 +80,14 @@ pub struct Deployment {
     pub project_uuid: String,
 }
 
+/// # Project
+/// A Project is a struct that contains the information about a project as per the database schema.
+/// # Fields
+/// - `uuid`: The uuid of the project.
+/// - `name`: The name of the project.
+/// - `created_at`: The date at which the project was created.
+/// - `updated_at`: The date at which the project was last updated.
+/// - `user_id`: The uuid of the user that owns the project.
 pub struct Project {
     pub uuid: String,
     pub name: String,
@@ -79,12 +96,28 @@ pub struct Project {
     pub user_id: String,
 }
 
+/// # DeploymentAndProject
+/// A DeploymentAndProject is a struct that contains a Deployment and a Project.
+/// # Fields
+/// - `project`: The project.
+/// - `deployment`: The deployment.
 pub struct DeploymentAndProject {
     pub project: Project,
     pub deployment: Deployment,
 }
 
 impl DeploymentAndProject {
+
+    /// # /!\ WARNING
+    /// As of now, the `uuid` is hardcoded to `nginx`. This function is only present for test purposes and will be deleted as soon as the database is implemented.
+    /// # New
+    /// Create a new DeploymentAndProject from a `uuid`.
+    /// # Arguments
+    /// - The `uuid` of the DeploymentAndProject to create.
+    /// # Returns
+    /// A DeploymentAndProject, wrapped in a result.
+    /// # Errors
+    /// If the `uuid` is not found, return an error.
     pub fn new(uuid: &str) -> Result<DeploymentAndProject, Error> {
         if uuid == "nginx" {
             Ok(DeploymentAndProject {
