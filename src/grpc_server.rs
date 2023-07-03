@@ -1,7 +1,8 @@
-use log::info;
+use log::{info, trace};
 use std::collections::HashMap;
 use tonic::{transport::Server, Request, Response, Status};
 
+use crate::application::Application;
 use crate::db::Db;
 use crate::engine::docker_engine::DockerEngine;
 use crate::engine::Engine;
@@ -21,10 +22,11 @@ pub struct PomegranateGrpcServer {
 
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
+
     /// # Start Deployment
-    /// Start a deployment from its uuid.
+    /// Start a deployment from its `uuid`.
     /// # Arguments
-    /// The request containing the uuid of the deployment to start.
+    /// The request containing the `uuid` of the deployment to start.
     /// # Returns
     /// Nothing, wrapped in a Result.
     async fn start_deployment(
@@ -33,18 +35,19 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = match self.db.get_app(deployment_uuid.clone()) {
-            Ok(app) => app,
-            Err(e) => {
-                return Err(Status::not_found(e.to_string()));
-            }
-        };
+        trace!("Creating app {}", deployment_uuid);
+
+        let app = get_app(&deployment_uuid, &self.db)?;
+
+        trace!("Starting app {}", deployment_uuid);
 
         let message = match self.docker_engine.start_application(&app).await {
             Ok(_) => {
+                trace!("Started app {}", deployment_uuid);
                 format!("Started application {}", app.project_id)
             }
             Err(e) => {
+                trace!("Failed to start app {}", deployment_uuid);
                 return Err(Status::internal(format!(
                     "Failed to start application {}: {}",
                     app.project_id, e
@@ -57,9 +60,9 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Restart deployment
-    /// Restart a deployment from its uuid.
+    /// Restart a deployment from its `uuid`.
     /// # Arguments
-    /// The request containing the uuid of the deployment to restart.
+    /// The request containing the `uuid` of the deployment to restart.
     /// # Returns
     /// Nothing, wrapped in a Result.
     async fn restart_deployment(
@@ -68,12 +71,7 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = match self.db.get_app(deployment_uuid.clone()) {
-            Ok(app) => app,
-            Err(e) => {
-                return Err(Status::not_found(e.to_string()));
-            }
-        };
+        let app = get_app(&deployment_uuid, &self.db)?;
 
         let message = match self.docker_engine.restart_application(&app).await {
             Ok(_) => {
@@ -92,9 +90,9 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Delete Deployment
-    /// Delete a configuration to a deployment from its uuid.
+    /// Delete a configuration to a deployment from its `uuid`.
     /// # Arguments
-    /// The request containing the uuid of the deployment to delete.
+    /// The request containing the `uuid` of the deployment to delete.
     /// # Returns
     /// Nothing, wrapped in a Result.
     async fn delete_deployment(
@@ -103,12 +101,7 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = match self.db.get_app(deployment_uuid.clone()) {
-            Ok(app) => app,
-            Err(e) => {
-                return Err(Status::not_found(e.to_string()));
-            }
-        };
+        let app = get_app(&deployment_uuid, &self.db)?;
 
         let message = match self
             .docker_engine
@@ -134,9 +127,9 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Stop Deployment
-    /// Stop a deployment from its uuid.
+    /// Stop a deployment from its `uuid`.
     /// # Arguments
-    /// The request containing the uuid of the deployment to stop.
+    /// The request containing the `uuid` of the deployment to stop.
     /// # Returns
     /// Nothing, wrapped in a Result.
     async fn stop_deployment(
@@ -145,12 +138,7 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = match self.db.get_app(deployment_uuid.clone()) {
-            Ok(app) => app,
-            Err(e) => {
-                return Err(Status::not_found(e.to_string()));
-            }
-        };
+        let app = get_app(&deployment_uuid, &self.db)?;
 
         let message = match self
             .docker_engine
@@ -173,9 +161,9 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Deployment Status
-    /// Get the status of a deployment from its uuid.
+    /// Get the status of a deployment from its `uuid`.
     /// # Arguments
-    /// The request containing the uuid of the deployment to get the status of.
+    /// The request containing the `uuid` of the deployment to get the status of.
     /// # Returns
     /// Nothing, wrapped in a Result.
     async fn deployment_status(
@@ -184,19 +172,14 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessageStatus>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
-        let app = match self.db.get_app(deployment_uuid.clone()) {
-            Ok(app) => app,
-            Err(e) => {
-                return Err(Status::not_found(e.to_string()));
-            }
-        };
+        let app = get_app(&deployment_uuid, &self.db)?;
 
         let status: (String, String) = match self
             .docker_engine
             .get_application_status(app.project_id.as_str(), app.application_id.as_str())
             .await
         {
-            Ok(status) =>  (
+            Ok(status) => (
                 format!("Application {} is {:?}", app.project_id, status),
                 format!("{:?}", status),
             ),
@@ -216,9 +199,9 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Apply Config Deployment
-    /// Apply a configuration to a deployment from its uuid.
+    /// Apply a configuration to a deployment from its `uuid`.
     /// # Arguments
-    /// The request containing the uuid of the deployment to apply the configuration to, as well as its configuration in JSON format.
+    /// The request containing the `uuid` of the deployment to apply the configuration to, as well as its configuration in JSON format.
     /// # Returns
     /// Nothing, wrapped in a Result.
     async fn apply_config_deployment(
@@ -241,7 +224,7 @@ impl Pomegranate for PomegranateGrpcServer {
 
         let app = match self
             .db
-            .get_custom_app(deployment_uuid.clone(), hashmap_config.clone())
+            .get_custom_app(&deployment_uuid, hashmap_config.clone())
         {
             Ok(app) => app,
             Err(e) => {
@@ -274,13 +257,27 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 }
 
+/// # Get App from db with uuid
+/// Get an `Application` from the database from its uuid.
+/// # Arguments
+/// - The borrowed `uuid` of the application to get.
+/// - The borrowed `database` to use to get the application.
+/// # Returns
+/// The application, wrapped in a Result.
+/// # Errors
+/// If the application is not found in the database, returns a `Status::NotFound`.
+fn get_app(uuid: &str, db: &Db) -> Result<Application, Status> {
+    db.get_app(uuid)
+        .map_err(|e| Status::not_found(e.to_string()))
+}
+
 /// # Start Server
 /// Start the gRPC server.
 /// # Arguments
 /// - The Docker engine to use to manage containers.
 /// - The database reference to use to get the deployments.
 /// # Returns
-/// Nothing, wrapped in a Result.
+/// Nothing.
 pub async fn start_server(
     docker_engine: DockerEngine,
     db: Db,

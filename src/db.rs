@@ -10,7 +10,7 @@ impl Db {
         Db {}
     }
 
-    pub fn get_deployment_and_project(&self, uuid: String) -> Result<DeploymentAndProject, Error> {
+    pub fn get_deployment_and_project(&self, uuid: &str) -> Result<DeploymentAndProject, Error> {
         DeploymentAndProject::new(uuid)
     }
 
@@ -24,7 +24,7 @@ impl Db {
     /// - The uuid of the application to get.
     /// # Returns
     /// Nothing, wrapped in a result.
-    pub fn get_app(&self, uuid: String) -> Result<Application, Error> {
+    pub fn get_app(&self, uuid: &str) -> Result<Application, Error> {
         match self.get_deployment_and_project(uuid) {
             Ok(app) => Ok(Application {
                 application_id: app.deployment.uuid.clone(),
@@ -46,7 +46,7 @@ impl Db {
     /// Nothing, wrapped in a result.
     pub fn get_custom_app(
         &self,
-        uuid: String,
+        uuid: &str,
         hashmap_config: HashMap<String, String>,
     ) -> Result<Application, Error> {
         match self.get_deployment_and_project(uuid) {
@@ -85,7 +85,7 @@ pub struct DeploymentAndProject {
 }
 
 impl DeploymentAndProject {
-    pub fn new(uuid: String) -> Result<DeploymentAndProject, Error> {
+    pub fn new(uuid: &str) -> Result<DeploymentAndProject, Error> {
         if uuid == "nginx" {
             Ok(DeploymentAndProject {
                 project: Project {
