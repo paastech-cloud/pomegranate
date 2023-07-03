@@ -27,7 +27,10 @@ impl Pomegranate for PomegranateGrpcServer {
     /// # Arguments
     /// The request containing the `uuid` of the deployment to start.
     /// # Returns
-    /// Nothing, wrapped in a Result.
+    /// A message indicating the deployment was started, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error
+    /// If the deployment failed to start, returns an `internal` error
     async fn start_deployment(
         &self,
         request: Request<StartDeploymentRequest>,
@@ -63,7 +66,10 @@ impl Pomegranate for PomegranateGrpcServer {
     /// # Arguments
     /// The request containing the `uuid` of the deployment to restart.
     /// # Returns
-    /// Nothing, wrapped in a Result.
+    /// A message indicating the deployment was restarted, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment failed to restart, returns an `internal` error.
     async fn restart_deployment(
         &self,
         request: Request<RestartDeploymentRequest>,
@@ -97,7 +103,10 @@ impl Pomegranate for PomegranateGrpcServer {
     /// # Arguments
     /// The request containing the `uuid` of the deployment to delete.
     /// # Returns
-    /// Nothing, wrapped in a Result.
+    /// A message indicating the deployment was deleted, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment could not be deleted, returns an `internal` error.
     async fn delete_deployment(
         &self,
         request: Request<DeleteDeploymentRequest>,
@@ -137,7 +146,10 @@ impl Pomegranate for PomegranateGrpcServer {
     /// # Arguments
     /// The request containing the `uuid` of the deployment to stop.
     /// # Returns
-    /// Nothing, wrapped in a Result.
+    /// A message indicating the deployment was stopped, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment failed to stop, returns an `internal` error.
     async fn stop_deployment(
         &self,
         request: Request<StopDeploymentRequest>,
@@ -175,7 +187,10 @@ impl Pomegranate for PomegranateGrpcServer {
     /// # Arguments
     /// The request containing the `uuid` of the deployment to get the status of.
     /// # Returns
-    /// Nothing, wrapped in a Result.
+    /// The status of the deployment, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment status could not be checked, returns an `internal` error.
     async fn deployment_status(
         &self,
         request: Request<DeploymentStatusRequest>,
@@ -219,7 +234,11 @@ impl Pomegranate for PomegranateGrpcServer {
     /// # Arguments
     /// The request containing the `uuid` of the deployment to apply the configuration to, as well as its configuration in JSON format.
     /// # Returns
-    /// Nothing, wrapped in a Result.
+    /// A message indicating the configuration was applied successfully, wrapped in a Result.
+    /// # Errors
+    /// If the JSON configuration is invalid, returns an `invalid_argument` error.
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the configuration could not be applied, returns an `internal` error.
     async fn apply_config_deployment(
         &self,
         request: Request<ApplyConfigDeploymentRequest>,
@@ -303,7 +322,7 @@ impl Pomegranate for PomegranateGrpcServer {
 /// # Returns
 /// The application, wrapped in a Result.
 /// # Errors
-/// If the application is not found in the database, returns a `Status::NotFound`.
+/// If the application is not found in the database, returns a `Status::not_found`.
 fn get_app(uuid: &str, db: &Db) -> Result<Application, Status> {
     db.get_app(uuid)
         .map_err(|e| Status::not_found(e.to_string()))
