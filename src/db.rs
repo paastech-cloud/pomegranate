@@ -29,7 +29,7 @@ impl Database {
             }
         });
 
-        return Database { client: client };
+        Database { client: client }
     }
 
     pub async fn create_table_accounts(&mut self) -> Result<(), Error> {

@@ -17,11 +17,11 @@ impl DatabaseConfig {
         let postgres_db_port =
             std::env::var("POMEGRANATE_DB_PORT").expect("POMEGRANATE_DB_PORT must be set.");
 
-        return DatabaseConfig {
+        DatabaseConfig {
             db_user: postgres_db_user,
             db_passwd: postgres_db_pass,
             db_url: postgres_db_url,
             db_port: postgres_db_port,
-        };
+        }
     }
 }
