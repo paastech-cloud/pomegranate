@@ -1,13 +1,15 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bollard::container::{
-    Config, CreateContainerOptions, InspectContainerOptions, RemoveContainerOptions,
+    Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, RemoveContainerOptions,
     StartContainerOptions, StopContainerOptions,
 };
 use bollard::image::CreateImageOptions;
 use bollard::service::ContainerStateStatusEnum;
 use bollard::Docker;
-use futures::stream::TryStreamExt;
+use bytes::Bytes;
+use futures::stream::{BoxStream, TryStreamExt};
+use futures::StreamExt;
 use log::{info, trace};
 
 use super::Engine;
@@ -226,5 +228,25 @@ impl Engine for DockerEngine {
                 })
             }
         }
+    }
+
+    fn get_logs(&self, project_id: &str, application_id: &str) -> BoxStream<Result<Bytes>> {
+        // Get the logs
+        let options = Some(LogsOptions::<String> {
+            stdout: true,
+            stderr: true,
+            ..Default::default()
+        });
+
+        self.docker
+            .logs(
+                &Self::build_container_name(project_id, application_id),
+                options,
+            )
+            .map(|item| {
+                // Map the item to have the correct type
+                item.map(|v| v.into_bytes()).map_err(|e| e.into())
+            })
+            .boxed()
     }
 }
