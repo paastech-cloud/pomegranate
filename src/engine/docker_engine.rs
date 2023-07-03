@@ -11,6 +11,7 @@ use bytes::Bytes;
 use futures::stream::{BoxStream, TryStreamExt};
 use futures::StreamExt;
 use log::{info, trace};
+use std::collections::HashMap;
 
 use super::Engine;
 use crate::application::{ApplicationStats, ApplicationStatus};
@@ -88,7 +89,7 @@ impl Engine for DockerEngine {
             ..Default::default()
         });
 
-        let config = Config {
+        let config: Config<String> = Config {
             image: Some(app.image_name.clone()),
             env: Some(
                 app.env_variables
@@ -96,6 +97,8 @@ impl Engine for DockerEngine {
                     .map(|(k, v)| format!("{}={}", k, v))
                     .collect(),
             ),
+
+            labels: Some(build_traefik_labels(&app)),
             ..Default::default()
         };
 
@@ -341,4 +344,30 @@ impl Engine for DockerEngine {
                 )
             })
     }
+}
+
+/// Returns a map of all traefik related labels, used for networking purposes
+/// Note that it always redirects to port 80
+fn build_traefik_labels(app: &Application) -> HashMap<String, String> {
+    return HashMap::from([
+        ("traefik.enable".into(), "true".into()),
+        (
+            format!("traefik.http.routers.{}.entrypoints", &app.application_id),
+            "websecure".into(),
+        ),
+        (
+            format!(
+                "traefik.http.services.{}.loadbalancer.server.port",
+                &app.application_id
+            ),
+            "80".into(),
+        ),
+        (
+            format!("traefik.http.routers.{}.rule", &app.application_id),
+            format!(
+                "Host(`{}.user-app.{}`)",
+                &app.application_id, TRAEFIK_CONFIG.fqdn
+            ),
+        ),
+    ]);
 }
