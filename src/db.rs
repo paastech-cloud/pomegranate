@@ -107,7 +107,6 @@ pub struct DeploymentAndProject {
 }
 
 impl DeploymentAndProject {
-
     /// # /!\ WARNING
     /// As of now, the `uuid` is hardcoded to `nginx`. This function is only present for test purposes and will be deleted as soon as the database is implemented.
     /// # New
