@@ -56,6 +56,12 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
+    /// # Restart deployment
+    /// Restart a deployment from its uuid.
+    /// # Arguments
+    /// The request containing the uuid of the deployment to restart.
+    /// # Returns
+    /// Nothing, wrapped in a Result.
     async fn restart_deployment(
         &self,
         request: Request<RestartDeploymentRequest>,
@@ -185,15 +191,15 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let status = match self
+        let status: (String, String) = match self
             .docker_engine
             .get_application_status(app.project_id.as_str(), app.application_id.as_str())
             .await
         {
-            Ok(status) => PomegranateStatusMessage {
-                message: format!("Application {} is {:?}", app.project_id, status),
-                status: format!("{:?}", status),
-            },
+            Ok(status) =>  (
+                format!("Application {} is {:?}", app.project_id, status),
+                format!("{:?}", status),
+            ),
             Err(e) => {
                 return Err(Status::internal(format!(
                     "Failed to get status of application {}: {}",
@@ -203,8 +209,8 @@ impl Pomegranate for PomegranateGrpcServer {
         };
 
         let response = ResponseMessageStatus {
-            message: status.message,
-            status: status.status,
+            message: status.0,
+            status: status.1,
         };
         Ok(Response::new(response))
     }
@@ -291,9 +297,4 @@ pub async fn start_server(
         .await?;
 
     Ok(())
-}
-
-struct PomegranateStatusMessage {
-    message: String,
-    status: String,
 }
