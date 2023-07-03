@@ -22,7 +22,6 @@ pub struct PomegranateGrpcServer {
 
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
-
     /// # Start Deployment
     /// Start a deployment from its `uuid`.
     /// # Arguments
@@ -47,7 +46,7 @@ impl Pomegranate for PomegranateGrpcServer {
                 format!("Started application {}", app.project_id)
             }
             Err(e) => {
-                trace!("Failed to start app {}", deployment_uuid);
+                trace!("Failed to start app {}: {}", deployment_uuid, e);
                 return Err(Status::internal(format!(
                     "Failed to start application {}: {}",
                     app.project_id, e
@@ -71,13 +70,17 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
+        trace!("Creating app {}", deployment_uuid);
+
         let app = get_app(&deployment_uuid, &self.db)?;
 
         let message = match self.docker_engine.restart_application(&app).await {
             Ok(_) => {
+                trace!("Restarted app {}", deployment_uuid);
                 format!("Restarted application {}", app.project_id)
             }
             Err(e) => {
+                trace!("Failed to restart app {}: {}", deployment_uuid, e);
                 return Err(Status::internal(format!(
                     "Failed to restart application {}: {}",
                     app.project_id, e
@@ -101,16 +104,19 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
+        trace!("Creating app {}", deployment_uuid);
+
         let app = get_app(&deployment_uuid, &self.db)?;
 
         let message = match self
             .docker_engine
-            .stop_application(app.project_id.as_str(), app.application_id.as_str())
+            .stop_application(&app.project_id, &app.application_id)
             .await
         {
             Ok(_) => {
                 //TODO: change message when deletion is implemented
-                format!("Stopped application {}. It was not deleted", app.project_id)
+                trace!("Stopped app {}. It was not deleted", deployment_uuid);
+                format!("Stopped application {}. It was not deleted", app.image_name)
             }
             Err(e) => {
                 return Err(Status::internal(format!(
@@ -138,20 +144,24 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessage>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
+        trace!("Creating app {}", deployment_uuid);
+
         let app = get_app(&deployment_uuid, &self.db)?;
 
         let message = match self
             .docker_engine
-            .stop_application(app.project_id.as_str(), app.application_id.as_str())
+            .stop_application(&app.project_id, &app.application_id)
             .await
         {
             Ok(_) => {
-                format!("Stopped application {}", app.project_id)
+                trace!("Stopped app {}", deployment_uuid);
+                format!("Stopped application {}", app.image_name)
             }
             Err(e) => {
+                trace!("Failed to stop app {}: {}", deployment_uuid, e);
                 return Err(Status::internal(format!(
                     "Failed to stop application {}: {}",
-                    app.project_id, e
+                    app.image_name, e
                 )));
             }
         };
@@ -172,6 +182,8 @@ impl Pomegranate for PomegranateGrpcServer {
     ) -> Result<Response<ResponseMessageStatus>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
+        trace!("Creating app {}", deployment_uuid);
+
         let app = get_app(&deployment_uuid, &self.db)?;
 
         let status: (String, String) = match self
@@ -179,11 +191,15 @@ impl Pomegranate for PomegranateGrpcServer {
             .get_application_status(app.project_id.as_str(), app.application_id.as_str())
             .await
         {
-            Ok(status) => (
-                format!("Application {} is {:?}", app.project_id, status),
-                format!("{:?}", status),
-            ),
+            Ok(status) => {
+                trace!("Status of app {}: {:?}", app.project_id, status);
+                (
+                    format!("Application {} is {:?}", app.project_id, status),
+                    format!("{:?}", status),
+                )
+            }
             Err(e) => {
+                trace!("Failed to get status of app {}: {}", app.project_id, e);
                 return Err(Status::internal(format!(
                     "Failed to get status of application {}: {}",
                     app.project_id, e
@@ -212,9 +228,15 @@ impl Pomegranate for PomegranateGrpcServer {
         let config = request.config;
         let deployment_uuid = request.deployment_uuid;
 
+        trace!("Transforming config string to hashmap");
+
         let hashmap_config: HashMap<String, String> = match serde_json::from_str(&config) {
-            Ok(config) => config,
+            Ok(config) => {
+                trace!("JSON config parsed successfully for {}", deployment_uuid);
+                config
+            }
             Err(e) => {
+                trace!("Failed to parse json config: {}", e);
                 return Err(Status::invalid_argument(format!(
                     "Failed to parse json config: {}",
                     e
@@ -222,22 +244,33 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let app = match self
+        trace!(
+            "Creating app {} with config {:?}",
+            deployment_uuid,
+            hashmap_config
+        );
+
+        let app = self
             .db
             .get_custom_app(&deployment_uuid, hashmap_config.clone())
-        {
-            Ok(app) => app,
-            Err(e) => {
-                return Err(Status::not_found(e.to_string()));
-            }
-        };
+            .map_err(|e| Status::not_found(e.to_string()))?;
 
         let message = match self.docker_engine.restart_application(&app).await {
-            Ok(_) => match self.db.set_deployment_config(deployment_uuid, config).await {
+            Ok(_) => match self
+                .db
+                .set_deployment_config(deployment_uuid.clone(), config)
+                .await
+            {
                 Ok(_) => {
+                    trace!("Applied config to {}", deployment_uuid);
                     format!("Applied config to application {}", app.project_id)
                 }
                 Err(e) => {
+                    trace!(
+                        "Failed to save config {:?} to database for {}",
+                        hashmap_config,
+                        deployment_uuid
+                    );
                     return Err(Status::data_loss(format!(
                         "Failed to save config to database {}: {}",
                         app.project_id, e
@@ -245,6 +278,11 @@ impl Pomegranate for PomegranateGrpcServer {
                 }
             },
             Err(e) => {
+                trace!(
+                    "Failed to apply config to application {}: {}",
+                    deployment_uuid,
+                    e
+                );
                 return Err(Status::internal(format!(
                     "Failed to apply config to application {}: {}",
                     app.project_id, e
