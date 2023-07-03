@@ -6,10 +6,8 @@ use crate::db::Db;
 use crate::engine::docker_engine::DockerEngine;
 use crate::engine::Engine;
 use paastech_proto::pomegranate::pomegranate_server::{Pomegranate, PomegranateServer};
-use paastech_proto::pomegranate::{
-    ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest,
-    ResponseMessage, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
-};
+use paastech_proto::pomegranate::{ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest, ResponseMessage, ResponseMessageStatus, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest};
+use crate::application::ApplicationStatus;
 
 /// # Pomegranate gRPC server
 /// The gRPC server that implements the Pomegranate routes.
@@ -39,7 +37,7 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let message: String = match self.docker_engine.start_application(&app).await {
+        let message = match self.docker_engine.start_application(&app).await {
             Ok(_) => {
                 format!("Started application {}", app.project_id)
             }
@@ -68,7 +66,7 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let message: String = match self.docker_engine.restart_application(&app).await {
+        let message = match self.docker_engine.restart_application(&app).await {
             Ok(_) => {
                 format!("Restarted application {}", app.project_id)
             }
@@ -103,7 +101,7 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let message: String = match self
+        let message = match self
             .docker_engine
             .stop_application(app.project_id.as_str(), app.application_id.as_str())
             .await
@@ -145,7 +143,7 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let message: String = match self
+        let message = match self
             .docker_engine
             .stop_application(app.project_id.as_str(), app.application_id.as_str())
             .await
@@ -174,7 +172,7 @@ impl Pomegranate for PomegranateGrpcServer {
     async fn deployment_status(
         &self,
         request: Request<DeploymentStatusRequest>,
-    ) -> Result<Response<ResponseMessage>, Status> {
+    ) -> Result<Response<ResponseMessageStatus>, Status> {
         let deployment_uuid = request.into_inner().deployment_uuid;
 
         let app = match self.db.get_app(deployment_uuid.clone()) {
@@ -184,12 +182,17 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let message = match self
+        let status = match self
             .docker_engine
             .get_application_status(app.project_id.as_str(), app.application_id.as_str())
             .await
         {
-            Ok(status) => format!("Application {} is {:?}", app.project_id, status),
+            Ok(status) => {
+                PomegranateStatusMessage {
+                    message: format!("Application {} is {:?}", app.project_id, status),
+                    status: status.to_string(),
+                }
+            }
             Err(e) => {
                 return Err(Status::internal(format!(
                     "Failed to get status of application {}: {}",
@@ -198,7 +201,7 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let response = ResponseMessage { message };
+        let response = ResponseMessageStatus { message: status.message, status: status.status };
         Ok(Response::new(response))
     }
 
@@ -284,4 +287,9 @@ pub async fn start_server(
         .await?;
 
     Ok(())
+}
+
+struct PomegranateStatusMessage {
+    message: String,
+    status: String,
 }
