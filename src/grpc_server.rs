@@ -6,8 +6,11 @@ use crate::db::Db;
 use crate::engine::docker_engine::DockerEngine;
 use crate::engine::Engine;
 use paastech_proto::pomegranate::pomegranate_server::{Pomegranate, PomegranateServer};
-use paastech_proto::pomegranate::{ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest, ResponseMessage, ResponseMessageStatus, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest};
-use crate::application::ApplicationStatus;
+use paastech_proto::pomegranate::{
+    ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentStatusRequest,
+    ResponseMessage, ResponseMessageStatus, RestartDeploymentRequest, StartDeploymentRequest,
+    StopDeploymentRequest,
+};
 
 /// # Pomegranate gRPC server
 /// The gRPC server that implements the Pomegranate routes.
@@ -187,12 +190,10 @@ impl Pomegranate for PomegranateGrpcServer {
             .get_application_status(app.project_id.as_str(), app.application_id.as_str())
             .await
         {
-            Ok(status) => {
-                PomegranateStatusMessage {
-                    message: format!("Application {} is {:?}", app.project_id, status),
-                    status: status.to_string(),
-                }
-            }
+            Ok(status) => PomegranateStatusMessage {
+                message: format!("Application {} is {:?}", app.project_id, status),
+                status: format!("{:?}", status),
+            },
             Err(e) => {
                 return Err(Status::internal(format!(
                     "Failed to get status of application {}: {}",
@@ -201,7 +202,10 @@ impl Pomegranate for PomegranateGrpcServer {
             }
         };
 
-        let response = ResponseMessageStatus { message: status.message, status: status.status };
+        let response = ResponseMessageStatus {
+            message: status.message,
+            status: status.status,
+        };
         Ok(Response::new(response))
     }
 
