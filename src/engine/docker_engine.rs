@@ -5,15 +5,19 @@ use bollard::container::{
     StartContainerOptions, StatsOptions, StopContainerOptions,
 };
 use bollard::image::{CreateImageOptions, RemoveImageOptions};
-use bollard::service::ContainerStateStatusEnum;
+use bollard::network::ConnectNetworkOptions;
+use bollard::service::{ContainerStateStatusEnum, EndpointSettings};
 use bollard::Docker;
 use bytes::Bytes;
 use futures::stream::{BoxStream, TryStreamExt};
 use futures::StreamExt;
 use log::{info, trace};
+use std::collections::HashMap;
 
 use super::Engine;
 use crate::application::{ApplicationStats, ApplicationStatus};
+use crate::config::application_config::ApplicationConfig;
+use crate::config::traefik_config::TraefikConfig;
 use crate::Application;
 
 /// # Docker execution engine
@@ -21,6 +25,8 @@ use crate::Application;
 pub struct DockerEngine {
     /// The Docker driver.
     docker: Docker,
+    /// The application config, see [Config](Config)
+    config: ApplicationConfig,
 }
 
 impl DockerEngine {
@@ -35,7 +41,9 @@ impl DockerEngine {
             Err(e) => panic!("Unable to connect to the Docker engine: {:?}", e),
         };
 
-        DockerEngine { docker }
+        let config = ApplicationConfig::from_env();
+
+        DockerEngine { docker, config }
     }
 
     /// # Build container name
@@ -87,7 +95,7 @@ impl Engine for DockerEngine {
             ..Default::default()
         });
 
-        let config = Config {
+        let config: Config<String> = Config {
             image: Some(app.image_name.clone()),
             env: Some(
                 app.env_variables
@@ -95,6 +103,8 @@ impl Engine for DockerEngine {
                     .map(|(k, v)| format!("{}={}", k, v))
                     .collect(),
             ),
+
+            labels: Some(build_traefik_labels(app, &self.config.traefik_config)),
             ..Default::default()
         };
 
@@ -115,6 +125,23 @@ impl Engine for DockerEngine {
                 format!(
                     "Failed to create the container for application {}/{}",
                     app.project_id, app.application_id
+                )
+            })?;
+
+        // Once the container is created, connect it to the traefik network
+        self.docker
+            .connect_network(
+                &self.config.traefik_config.network_name,
+                ConnectNetworkOptions {
+                    container: &container_id,
+                    endpoint_config: EndpointSettings::default(),
+                },
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to attach the container for application {}/{} to network {}",
+                    app.project_id, app.application_id, self.config.traefik_config.network_name,
                 )
             })?;
 
@@ -323,4 +350,42 @@ impl Engine for DockerEngine {
                 )
             })
     }
+}
+
+/// # Build Traefik Labels
+/// Build the labels necessary for network routing, perhaps a middleware system would be better
+///
+/// This function will always try to re-route to the port 80
+///
+/// # Arguments
+/// - [Application](Application) struct.
+/// - [TraefikConfig](TraefikConfig) struct
+///
+/// # Returns
+/// - A HashMap<String, String>
+fn build_traefik_labels(
+    app: &Application,
+    traefik_config: &TraefikConfig,
+) -> HashMap<String, String> {
+    HashMap::from([
+        ("traefik.enable".into(), "true".into()),
+        (
+            format!("traefik.http.routers.{}.entrypoints", app.application_id),
+            "websecure".into(),
+        ),
+        (
+            format!(
+                "traefik.http.services.{}.loadbalancer.server.port",
+                app.application_id
+            ),
+            "80".into(),
+        ),
+        (
+            format!("traefik.http.routers.{}.rule", app.application_id),
+            format!(
+                "Host(`{}.user-app.{}`)",
+                app.application_id, traefik_config.fqdn
+            ),
+        ),
+    ])
 }
