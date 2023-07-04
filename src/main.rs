@@ -1,5 +1,5 @@
 mod application;
-mod db;
+mod config;
 mod engine;
 mod grpc_server;
 
@@ -26,7 +26,6 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     // Init the Docker engine
     let engine = DockerEngine::new();
 
-    let db = db::Db::new();
 
     grpc_server::start_server(engine, db).await.map_err(|e| {
         error!("Failed to start gRPC server: {}", e);

@@ -18,3 +18,5 @@ futures = "0.3.28"
 anyhow = { version = "1.0.71", features = ["backtrace"] }
 serde_json = "1.0.97"
 chrono = "0.4.26"
+
+bytes = "1.4.0"

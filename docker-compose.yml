@@ -5,3 +5,48 @@ services:
     build: ./
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
+    depends_on:
+      - reverse-proxy
+    env_file:
+      - .env
+
+  reverse-proxy:
+    # The official v2 Traefik docker image
+    image: traefik:v2.10
+    ports:
+      # The HTTP port
+      - "80:80"
+      - "443:443"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Let's encrypt certificates
+      - ./letsencrypt:/letsencrypt
+    command:
+      - --providers.docker=true
+      - --providers.docker.network=pomegranate-proxy-network
+      # Default entrypoint, redirect to 443 (HTTPS)
+      - --entryPoints.web.address=:80
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.web.http.redirections.entryPoint.permanent=true
+
+      # Secured endpoint
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.websecure.http.tls.certResolver=letsencrypt
+      - --entryPoints.websecure.http.tls.domains[0].main=${POMEGRANATE_FQDN}
+      - --entryPoints.websecure.http.tls.domains[0].sans[0]=*.${POMEGRANATE_FQDN}
+
+      - --certificatesResolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesResolvers.letsencrypt.acme.email=${POMEGRANATE_LETSENCRYPT_EMAIL}
+      - --certificatesResolvers.letsencrypt.acme.dnsChallenge.provider=${POMEGRANATE_LETSENCRYPT_PROVIDER}
+
+      - --log.level=DEBUG
+    env_file:
+      - .env
+    networks:
+      - pomegranate-proxy-network
+
+networks:
+  pomegranate-proxy-network:
+    name: ${POMEGRANATE_DOCKER_NETWORK_NAME}
