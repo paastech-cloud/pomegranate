@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 
+#[derive(Debug, Default)]
 pub struct TraefikConfig {
     pub fqdn: String,
     pub network_name: String,
