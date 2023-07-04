@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bollard::container::{
-    Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, NetworkingConfig,
-    RemoveContainerOptions, StartContainerOptions, StatsOptions, StopContainerOptions,
+    Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, RemoveContainerOptions,
+    StartContainerOptions, StatsOptions, StopContainerOptions,
 };
 use bollard::image::{CreateImageOptions, RemoveImageOptions};
-use bollard::service::ContainerStateStatusEnum;
+use bollard::network::ConnectNetworkOptions;
+use bollard::service::{ContainerStateStatusEnum, EndpointSettings};
 use bollard::Docker;
 use bytes::Bytes;
 use futures::stream::{BoxStream, TryStreamExt};
@@ -352,7 +353,7 @@ impl Engine for DockerEngine {
 }
 
 /// # Build Traefik Labels
-/// Build the labels necessary for network routing
+/// Build the labels necessary for network routing, perhaps a middleware system would be better
 ///
 /// This function will always try to re-route to the port 80
 ///
