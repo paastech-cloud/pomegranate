@@ -351,8 +351,17 @@ impl Engine for DockerEngine {
     }
 }
 
-/// Returns a map of all traefik related labels, used for networking purposes
-/// Note that it always redirects to port 80
+/// # Build Traefik Labels
+/// Build the labels necessary for network routing
+///
+/// This function will always try to re-route to the port 80
+///
+/// # Arguments
+/// - [Application](Application) struct.
+/// - [TraefikConfig](TraefikConfig) struct
+///
+/// # Returns
+/// - A HashMap<String, String>
 fn build_traefik_labels(
     app: &Application,
     traefik_config: &TraefikConfig,
