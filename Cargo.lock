@@ -445,9 +445,9 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed44880c466736ef9a5c5b5facefb5ed0785676d0c02d612db14e54f0d84286"
+checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
 
 [[package]]
 name = "hex"
@@ -754,7 +754,7 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 [[package]]
 name = "paastech-proto"
 version = "0.1.0"
-source = "git+https://github.com/paastech-cloud/proto.git#da0e77b7b99fb457c8079b4d0565ccb6ec462deb"
+source = "git+https://github.com/paastech-cloud/proto.git#899b8fe21930ed62a9e8f96a905c8f5e10e94caa"
 dependencies = [
  "prost",
  "tonic",
@@ -825,6 +825,7 @@ dependencies = [
  "prost",
  "serde_json",
  "tokio",
+ "tokio-stream",
  "tonic",
 ]
 

@@ -1,5 +1,8 @@
+use bytes::Bytes;
+use futures::StreamExt;
 use log::{info, trace};
 use std::collections::HashMap;
+use std::str::from_utf8;
 use tonic::{transport::Server, Request, Response, Status};
 
 use crate::application::Application;
@@ -20,7 +23,6 @@ pub struct PomegranateGrpcServer {
 
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
-
     /// # Start Deployment
     /// Start a deployment from its `uuid`.
     /// # Arguments
@@ -235,14 +237,64 @@ impl Pomegranate for PomegranateGrpcServer {
         &self,
         request: Request<DeploymentLogRequest>,
     ) -> Result<Response<ResponseMessage>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let deployment_uuid = request.deployment_uuid;
+        let project_uuid = request.project_uuid;
+
+        trace!("Getting logs of app {}", deployment_uuid);
+        let logs: Vec<Result<Bytes, _>> = self
+            .docker_engine
+            .get_logs(&project_uuid, &deployment_uuid)
+            .collect()
+            .await;
+
+        let output = logs
+            .iter()
+            .map(|item| match item {
+                Ok(value) => from_utf8(value).unwrap().to_string(),
+                Err(err) => format!("Error: {:?}", err),
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        let response = ResponseMessage { message: output };
+
+        Ok(Response::new(response))
     }
 
     async fn deployment_stat(
         &self,
         request: Request<DeploymentStatRequest>,
     ) -> Result<Response<DeploymentStats>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let deployment_uuid = request.deployment_uuid;
+        let project_uuid = request.project_uuid;
+
+        trace!("Getting stats of app {}", deployment_uuid);
+
+        let stats = self
+            .docker_engine
+            .get_stats(&project_uuid, &deployment_uuid)
+            .await
+            .map_err(|e| {
+                trace!("Failed to get stats of app {}: {}", deployment_uuid, e);
+                Status::internal(format!(
+                    "Failed to get stats of application {}: {}",
+                    deployment_uuid, e
+                ))
+            })?
+            .ok_or(Status::not_found(format!(
+                "Failed to get stats of application {}: {}",
+                deployment_uuid, "Not found"
+            )))?;
+
+        let response = DeploymentStats {
+            message: format!("Stats of app {}", deployment_uuid),
+            cpu_usage: stats.cpu_usage.unwrap_or_default(),
+            memory_usage: stats.memory_usage.unwrap_or_default(),
+            memory_limit: stats.memory_limit.unwrap_or_default(),
+        };
+        Ok(Response::new(response))
     }
 
     /// # Apply Config Deployment
