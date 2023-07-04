@@ -352,21 +352,21 @@ fn build_traefik_labels(app: &Application) -> HashMap<String, String> {
     HashMap::from([
         ("traefik.enable".into(), "true".into()),
         (
-            format!("traefik.http.routers.{}.entrypoints", &app.application_id),
+            format!("traefik.http.routers.{}.entrypoints", app.application_id),
             "websecure".into(),
         ),
         (
             format!(
                 "traefik.http.services.{}.loadbalancer.server.port",
-                &app.application_id
+                app.application_id
             ),
             "80".into(),
         ),
         (
-            format!("traefik.http.routers.{}.rule", &app.application_id),
+            format!("traefik.http.routers.{}.rule", app.application_id),
             format!(
                 "Host(`{}.user-app.{}`)",
-                &app.application_id, TRAEFIK_CONFIG.fqdn
+                app.application_id, TRAEFIK_CONFIG.fqdn
             ),
         ),
     ])
