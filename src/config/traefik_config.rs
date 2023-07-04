@@ -7,14 +7,12 @@ pub struct TraefikConfig {
 
 impl TraefikConfig {
     pub fn new() -> Self {
-        return TraefikConfig {
+        TraefikConfig {
             fqdn: std::env::var("POMEGRANATE_FQDN").unwrap_or(String::from("localhost")),
             network_name: std::env::var("POMEGRANATE_DOCKER_NETWORK_NAME")
                 .expect("Missing proxy network !"),
-        };
+        }
     }
 }
 
-pub static TRAEFIK_CONFIG: Lazy<TraefikConfig> = Lazy::new(|| {
-    return TraefikConfig::new();
-});
+pub static TRAEFIK_CONFIG: Lazy<TraefikConfig> = Lazy::new(TraefikConfig::new);

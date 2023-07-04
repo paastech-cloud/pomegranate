@@ -98,7 +98,7 @@ impl Engine for DockerEngine {
                     .collect(),
             ),
 
-            labels: Some(build_traefik_labels(&app)),
+            labels: Some(build_traefik_labels(app)),
             ..Default::default()
         };
 
@@ -349,7 +349,7 @@ impl Engine for DockerEngine {
 /// Returns a map of all traefik related labels, used for networking purposes
 /// Note that it always redirects to port 80
 fn build_traefik_labels(app: &Application) -> HashMap<String, String> {
-    return HashMap::from([
+    HashMap::from([
         ("traefik.enable".into(), "true".into()),
         (
             format!("traefik.http.routers.{}.entrypoints", &app.application_id),
@@ -369,5 +369,5 @@ fn build_traefik_labels(app: &Application) -> HashMap<String, String> {
                 &app.application_id, TRAEFIK_CONFIG.fqdn
             ),
         ),
-    ]);
+    ])
 }
