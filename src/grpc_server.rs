@@ -24,7 +24,7 @@ pub struct PomegranateGrpcServer {
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
     /// # Start Deployment
-    /// Start a deployment from its `uuid`.
+    /// Start a deployment from its `uuid`, `project_uuid` and `user_uuid`.
     /// # Arguments
     /// The request containing the `uuid` of the deployment to start.
     /// # Returns
@@ -66,7 +66,7 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Restart deployment
-    /// Restart a deployment from its `uuid`.
+    /// Restart a deployment from its `uuid`, `project_uuid` and `user_uuid`.
     /// # Arguments
     /// The request containing the `uuid` of the deployment to restart.
     /// # Returns
@@ -106,7 +106,7 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Delete Deployment
-    /// Delete a configuration to a deployment from its `uuid`.
+    /// Delete a configuration to a deployment from its `uuid`, `project_uuid` and `user_uuid`.
     /// # Arguments
     /// The request containing the `uuid` of the deployment to delete.
     /// # Returns
@@ -156,7 +156,7 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Stop Deployment
-    /// Stop a deployment from its `uuid`.
+    /// Stop a deployment from its `uuid` and `project_uuid`.
     /// # Arguments
     /// The request containing the `uuid` of the deployment to stop.
     /// # Returns
@@ -195,7 +195,7 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Deployment Status
-    /// Get the status of a deployment from its `uuid`.
+    /// Get the status of a deployment from its `uuid` and `project_uuid`.
     /// # Arguments
     /// The request containing the `uuid` of the deployment to get the status of.
     /// # Returns
@@ -239,6 +239,12 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
+    /// # Deployment Logs
+    /// Get the logs of a deployment from its `uuid` and `project_uuid`.
+    /// # Arguments
+    /// The request containing the `uuid` and `project_uuid` of the deployment to get the logs of.
+    /// # Returns
+    /// The logs of the deployment, wrapped in a Result.
     async fn deployment_log(
         &self,
         request: Request<DeploymentLogRequest>,
@@ -268,6 +274,12 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
+    /// # Deployment Logs
+    /// Get the logs of a deployment from its `uuid` and `project_uuid`.
+    /// # Arguments
+    /// The request containing the `uuid` and `project_uuid` of the deployment to get the stats of.
+    /// # Returns
+    /// The stats of the deployment, wrapped in a Result.
     async fn deployment_stat(
         &self,
         request: Request<DeploymentStatRequest>,
@@ -304,7 +316,7 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Apply Config Deployment
-    /// Apply a configuration to a deployment from its `uuid`.
+    /// Apply a configuration to a deployment from its `uuid`, `project_uuid` and `user_uuid`.
     /// # Arguments
     /// The request containing the `uuid` of the deployment to apply the configuration to, as well as its configuration in JSON format.
     /// # Returns
@@ -377,9 +389,11 @@ impl Pomegranate for PomegranateGrpcServer {
 }
 
 /// # Get App from db with uuid
-/// Get an `Application` from the database from its uuid.
+/// Get an `Application` from the database from its `uuid`, `project_uuid` and `user_uuid`.
 /// # Arguments
 /// - The borrowed `uuid` of the application to get.
+/// - The borrowed `project_uuid` of the application to get.
+/// - The borrowed `user_uuid` of the application to get.
 /// # Returns
 /// The application, wrapped in a Result.
 /// # Errors
