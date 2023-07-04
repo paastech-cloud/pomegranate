@@ -4,7 +4,7 @@ use bollard::container::{
     Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, RemoveContainerOptions,
     StartContainerOptions, StatsOptions, StopContainerOptions,
 };
-use bollard::image::CreateImageOptions;
+use bollard::image::{CreateImageOptions, RemoveImageOptions};
 use bollard::service::ContainerStateStatusEnum;
 use bollard::Docker;
 use bytes::Bytes;
@@ -298,6 +298,28 @@ impl Engine for DockerEngine {
                 format!(
                     "Failed to get the statistics for application {}/{}",
                     project_id, application_id
+                )
+            })
+    }
+
+    async fn remove_application_image(&self, app: &Application) -> Result<()> {
+        // Remove the image from the cache
+        let options = Some(RemoveImageOptions {
+            ..Default::default()
+        });
+
+        self.docker
+            .remove_image(
+                format!("{}:{}", app.image_name, app.image_tag).as_str(),
+                options,
+                None,
+            )
+            .await
+            .map(|_| {})
+            .with_context(|| {
+                format!(
+                    "Failed to remove the image {}:{} for application {}/{}",
+                    app.image_name, app.image_tag, app.project_id, app.application_id
                 )
             })
     }

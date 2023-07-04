@@ -160,4 +160,33 @@ pub trait Engine {
         project_id: &str,
         application_id: &str,
     ) -> Result<Option<ApplicationStats>>;
+
+    /// # Remove application image
+    /// Remove the container image of a PaaS application from the local cache.
+    ///
+    /// The image is *NOT* removed from the cache if still used by at least one container.
+    ///
+    /// # Arguments
+    /// - ID of the project that the application is a part of.
+    /// - ID of the application.
+    ///
+    /// # Returns
+    /// - Nothing, wrapped in a Result.
+    ///
+    /// # Example
+    /// ```
+    /// let app = Application {
+    ///     application_id: String::from("webapp"),
+    ///     project_id: String::from("test"),
+    ///     image_name: String::from("nginx"),
+    ///     image_tag: String::from("latest"),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let engine = MyEngine::new();
+    /// engine.remove_application_image(&app)
+    ///     .await
+    ///     .unwrap();
+    /// ```
+    async fn remove_application_image(&self, app: &Application) -> Result<()>;
 }
