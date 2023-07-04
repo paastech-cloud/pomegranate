@@ -121,29 +121,35 @@ impl Pomegranate for PomegranateGrpcServer {
         let request = request.into_inner();
         let deployment_uuid = request.deployment_uuid;
         let project_uuid = request.project_uuid;
+        let user_uuid = request.user_uuid;
+
+        let app = get_app(&deployment_uuid, &project_uuid, &user_uuid);
 
         let message = match self
             .docker_engine
             .stop_application(project_uuid.as_str(), deployment_uuid.as_str())
             .await
         {
-            Ok(_) => {
-                //TODO: change message when deletion is implemented
-                trace!("Stopped app {}. It was not deleted", deployment_uuid);
-                format!(
-                    "Stopped application {}. It was not deleted",
-                    deployment_uuid
-                )
-            }
+            Ok(_) => match self.docker_engine.remove_application_image(&app).await {
+                Ok(_) => {
+                    trace!("Deleted app {}", deployment_uuid);
+                    format!("Deleted application {}", app.project_id)
+                }
+                Err(e) => {
+                    trace!("Failed to delete app {}: {}", deployment_uuid, e);
+                    return Err(Status::internal(format!(
+                        "Failed to delete application {}: {}",
+                        app.project_id, e
+                    )));
+                }
+            },
             Err(e) => {
                 return Err(Status::internal(format!(
-                    "Failed to delete application {}: {}",
+                    "Failed to stop application {}: {}",
                     deployment_uuid, e
                 )));
             }
         };
-
-        //TODO: Delete the app from the database & prune its image
 
         let response = ResponseMessage { message };
         Ok(Response::new(response))
