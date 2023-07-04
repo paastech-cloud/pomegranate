@@ -1,17 +1,19 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bollard::container::{
-    Config, CreateContainerOptions, InspectContainerOptions, RemoveContainerOptions,
-    StartContainerOptions, StopContainerOptions,
+    Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, RemoveContainerOptions,
+    StartContainerOptions, StatsOptions, StopContainerOptions,
 };
-use bollard::image::CreateImageOptions;
+use bollard::image::{CreateImageOptions, RemoveImageOptions};
 use bollard::service::ContainerStateStatusEnum;
 use bollard::Docker;
-use futures::stream::TryStreamExt;
+use bytes::Bytes;
+use futures::stream::{BoxStream, TryStreamExt};
+use futures::StreamExt;
 use log::{info, trace};
 
 use super::Engine;
-use crate::application::ApplicationStatus;
+use crate::application::{ApplicationStats, ApplicationStatus};
 use crate::Application;
 
 /// # Docker execution engine
@@ -226,5 +228,99 @@ impl Engine for DockerEngine {
                 })
             }
         }
+    }
+
+    fn get_logs(&self, project_id: &str, application_id: &str) -> BoxStream<Result<Bytes>> {
+        // Get the logs
+        let options = Some(LogsOptions::<String> {
+            stdout: true,
+            stderr: true,
+            ..Default::default()
+        });
+
+        self.docker
+            .logs(
+                &Self::build_container_name(project_id, application_id),
+                options,
+            )
+            .map(|item| {
+                // Map the item to have the correct type
+                item.map(|v| v.into_bytes()).map_err(|e| e.into())
+            })
+            .boxed()
+    }
+
+    async fn get_stats(
+        &self,
+        project_id: &str,
+        application_id: &str,
+    ) -> Result<Option<ApplicationStats>> {
+        // Get the stats
+        let options = Some(StatsOptions {
+            stream: false,
+            one_shot: false,
+        });
+
+        self.docker
+            .stats(
+                &Self::build_container_name(project_id, application_id),
+                options,
+            )
+            .next()
+            .await
+            .transpose()
+            .map(|item| {
+                item.map(|v| {
+                    // Compute the CPU percent
+                    let cpu_delta = (v.cpu_stats.cpu_usage.total_usage as f64)
+                        - (v.precpu_stats.cpu_usage.total_usage as f64);
+                    let system_delta = (v.cpu_stats.system_cpu_usage.unwrap_or_default() as f64)
+                        - (v.precpu_stats.system_cpu_usage.unwrap_or_default() as f64);
+
+                    let cpu_percent = if cpu_delta > 0.0 && system_delta > 0.0 {
+                        Some(
+                            (cpu_delta / system_delta)
+                                * (v.cpu_stats.online_cpus.unwrap_or_default() as f64)
+                                * 100.0,
+                        )
+                    } else {
+                        Some(0.0)
+                    };
+
+                    ApplicationStats {
+                        memory_usage: v.memory_stats.usage,
+                        memory_limit: v.memory_stats.limit,
+                        cpu_usage: cpu_percent,
+                    }
+                })
+            })
+            .with_context(|| {
+                format!(
+                    "Failed to get the statistics for application {}/{}",
+                    project_id, application_id
+                )
+            })
+    }
+
+    async fn remove_application_image(&self, app: &Application) -> Result<()> {
+        // Remove the image from the cache
+        let options = Some(RemoveImageOptions {
+            ..Default::default()
+        });
+
+        self.docker
+            .remove_image(
+                format!("{}:{}", app.image_name, app.image_tag).as_str(),
+                options,
+                None,
+            )
+            .await
+            .map(|_| {})
+            .with_context(|| {
+                format!(
+                    "Failed to remove the image {}:{} for application {}/{}",
+                    app.image_name, app.image_tag, app.project_id, app.application_id
+                )
+            })
     }
 }

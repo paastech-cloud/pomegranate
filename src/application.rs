@@ -40,3 +40,17 @@ pub enum ApplicationStatus {
     /// The application has exited, is dead or is paused.
     Stopped,
 }
+
+/// # PaaS application statistics
+/// Statistics about the resource usage of a PaaS application.
+#[derive(Debug, Default)]
+pub struct ApplicationStats {
+    /// Current memory usage.
+    pub memory_usage: Option<u64>,
+
+    /// Memory limit.
+    pub memory_limit: Option<u64>,
+
+    /// Current CPU usage in percent.
+    pub cpu_usage: Option<f64>,
+}
