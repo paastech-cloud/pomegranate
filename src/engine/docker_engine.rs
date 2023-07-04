@@ -15,7 +15,8 @@ use std::collections::HashMap;
 
 use super::Engine;
 use crate::application::{ApplicationStats, ApplicationStatus};
-use crate::config::traefik_config::TRAEFIK_CONFIG;
+use crate::config::application_config::ApplicationConfig;
+use crate::config::traefik_config::TraefikConfig;
 use crate::Application;
 
 /// # Docker execution engine
@@ -23,6 +24,8 @@ use crate::Application;
 pub struct DockerEngine {
     /// The Docker driver.
     docker: Docker,
+    /// The application config, see [Config](Config)
+    config: ApplicationConfig,
 }
 
 impl DockerEngine {
@@ -37,7 +40,9 @@ impl DockerEngine {
             Err(e) => panic!("Unable to connect to the Docker engine: {:?}", e),
         };
 
-        DockerEngine { docker }
+        let config = ApplicationConfig::from_env();
+
+        DockerEngine { docker, config }
     }
 
     /// # Build container name
@@ -98,7 +103,7 @@ impl Engine for DockerEngine {
                     .collect(),
             ),
 
-            labels: Some(build_traefik_labels(app)),
+            labels: Some(build_traefik_labels(app, &self.config.traefik_config)),
             ..Default::default()
         };
 
@@ -125,7 +130,7 @@ impl Engine for DockerEngine {
         // Once the container is created, connect it to the traefik network
         self.docker
             .connect_network(
-                &TRAEFIK_CONFIG.network_name,
+                &self.config.traefik_config.network_name,
                 ConnectNetworkOptions {
                     container: &container_id,
                     endpoint_config: EndpointSettings::default(),
@@ -135,7 +140,7 @@ impl Engine for DockerEngine {
             .with_context(|| {
                 format!(
                     "Failed to attach the container for application {}/{} to network {}",
-                    app.project_id, app.application_id, &TRAEFIK_CONFIG.network_name
+                    app.project_id, app.application_id, self.config.traefik_config.network_name,
                 )
             })?;
 
@@ -348,7 +353,10 @@ impl Engine for DockerEngine {
 
 /// Returns a map of all traefik related labels, used for networking purposes
 /// Note that it always redirects to port 80
-fn build_traefik_labels(app: &Application) -> HashMap<String, String> {
+fn build_traefik_labels(
+    app: &Application,
+    traefik_config: &TraefikConfig,
+) -> HashMap<String, String> {
     HashMap::from([
         ("traefik.enable".into(), "true".into()),
         (
@@ -366,7 +374,7 @@ fn build_traefik_labels(app: &Application) -> HashMap<String, String> {
             format!("traefik.http.routers.{}.rule", app.application_id),
             format!(
                 "Host(`{}.user-app.{}`)",
-                app.application_id, TRAEFIK_CONFIG.fqdn
+                app.application_id, traefik_config.fqdn
             ),
         ),
     ])
