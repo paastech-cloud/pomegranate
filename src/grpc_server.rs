@@ -263,7 +263,7 @@ impl Pomegranate for PomegranateGrpcServer {
         let output = logs
             .iter()
             .map(|item| match item {
-                Ok(value) => from_utf8(value).unwrap().to_string(),
+                Ok(value) => from_utf8(value).unwrap_or_default().to_string(),
                 Err(err) => format!("Error: {:?}", err),
             })
             .collect::<Vec<String>>()
@@ -416,7 +416,7 @@ fn get_app(deployment_uuid: &str, project_uuid: &str, user_uuid: &str) -> Applic
 /// # Returns
 /// Nothing.
 pub async fn start_server(docker_engine: DockerEngine) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse()?;
+    let addr = "[::]:50051".parse()?;
 
     let pomegranate_grpc_server = PomegranateGrpcServer { docker_engine };
 
