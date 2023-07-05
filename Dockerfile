@@ -12,4 +12,6 @@ FROM debian:bookworm-slim as runner
 WORKDIR /app
 COPY --from=builder /app/target/release/pomegranate .
 
+EXPOSE 50051
+
 CMD ["./pomegranate"]
