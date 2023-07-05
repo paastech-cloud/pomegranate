@@ -9,6 +9,8 @@ services:
       - reverse-proxy
     env_file:
       - .env
+    ports:
+      - "50051:50051"
 
   reverse-proxy:
     # The official v2 Traefik docker image

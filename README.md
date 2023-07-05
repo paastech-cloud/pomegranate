@@ -6,7 +6,8 @@ This service manages deploying applications for the PaaS clients in an execution
 Documentation is available [here](https://paastech-cloud.github.io/pomegranate/pomegranate/).
 
 ## Run this application
-To run Pomegranate, you must first [install the Rust toolchain](https://www.rust-lang.org/tools/install) for your platform.
+To run Pomegranate, you must first [install the Rust toolchain](https://www.rust-lang.org/tools/install) for your platform.  
+You must then install [protoc](https://grpc.io/docs/protoc-installation/), the Protocol Buffers compiler.
 
 You must also install an execution engine, such as [Docker](https://docs.docker.com/get-docker/). For Docker, make sure that
 you have access to the Docker socket.
@@ -33,3 +34,5 @@ cargo clippy
 # run the formatter
 cargo fmt --check
 ```
+
+Pomegranate's gRPC server will then run on `[::]:50051`. The server will then answer to the proto routes defined at [paastech/proto](https://github.com/paastech-cloud/proto).
