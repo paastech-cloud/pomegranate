@@ -4,12 +4,12 @@ use bollard::container::{
     Config, CreateContainerOptions, InspectContainerOptions, LogsOptions, RemoveContainerOptions,
     StartContainerOptions, StatsOptions, StopContainerOptions,
 };
-use bollard::image::{CreateImageOptions, RemoveImageOptions};
+use bollard::image::RemoveImageOptions;
 use bollard::network::ConnectNetworkOptions;
 use bollard::service::{ContainerStateStatusEnum, EndpointSettings};
 use bollard::Docker;
 use bytes::Bytes;
-use futures::stream::{BoxStream, TryStreamExt};
+use futures::stream::BoxStream;
 use futures::StreamExt;
 use log::{info, trace};
 use std::collections::HashMap;
@@ -63,32 +63,6 @@ impl DockerEngine {
 #[async_trait]
 impl Engine for DockerEngine {
     async fn start_application(&self, app: &Application) -> Result<()> {
-        // Create the image
-        trace!(
-            "Pulling container image: {}:{}",
-            app.image_name,
-            app.image_tag
-        );
-
-        self.docker
-            .create_image(
-                Some(CreateImageOptions {
-                    from_image: app.image_name.clone(),
-                    tag: app.image_tag.clone(),
-                    ..Default::default()
-                }),
-                None,
-                None,
-            )
-            .try_collect::<Vec<_>>()
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to create the image for application {}/{}",
-                    app.project_id, app.application_id
-                )
-            })?;
-
         // Create the Docker container configuration
         let options = Some(CreateContainerOptions {
             name: Self::build_container_name(&app.project_id, &app.application_id),
