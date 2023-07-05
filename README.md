@@ -35,4 +35,4 @@ cargo clippy
 cargo fmt --check
 ```
 
-Pomegranate's gRPC server will then run on `[::1]:50051`. The server will then answer to the proto routes defined at [paastech/proto](https://github.com/paastech-cloud/proto).
+Pomegranate's gRPC server will then run on `[::]:50051`. The server will then answer to the proto routes defined at [paastech/proto](https://github.com/paastech-cloud/proto).
