@@ -55,8 +55,8 @@ impl DockerEngine {
     ///
     /// # Returns
     /// - The name of the associated container.
-    fn build_container_name(project_id: &str, application_id: &str) -> String {
-        format!("client-app_{}_{}", project_id, application_id)
+    fn build_container_name(container_name: &str) -> String {
+        format!("client-app_{}", container_name)
     }
 }
 
@@ -65,7 +65,7 @@ impl Engine for DockerEngine {
     async fn start_application(&self, app: &Application) -> Result<()> {
         // Create the Docker container configuration
         let options = Some(CreateContainerOptions {
-            name: Self::build_container_name(&app.project_id, &app.application_id),
+            name: Self::build_container_name(&app.container_name),
             ..Default::default()
         });
 
@@ -97,8 +97,8 @@ impl Engine for DockerEngine {
             .map(|v| v.id)
             .with_context(|| {
                 format!(
-                    "Failed to create the container for application {}/{}",
-                    app.project_id, app.application_id
+                    "Failed to create the container for application {}",
+                    app.container_name
                 )
             })?;
 
@@ -114,8 +114,8 @@ impl Engine for DockerEngine {
             .await
             .with_context(|| {
                 format!(
-                    "Failed to attach the container for application {}/{} to network {}",
-                    app.project_id, app.application_id, self.config.traefik_config.network_name,
+                    "Failed to attach the container for application {} to network {}",
+                    app.container_name, self.config.traefik_config.network_name,
                 )
             })?;
 
@@ -124,17 +124,17 @@ impl Engine for DockerEngine {
             .await
             .with_context(|| {
                 format!(
-                    "Failed to start the container for application {}/{}",
-                    app.project_id, app.application_id
+                    "Failed to start the container for application {}",
+                    app.container_name
                 )
             })?;
 
         Ok(())
     }
 
-    async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<()> {
+    async fn stop_application(&self, container_name: &str) -> Result<()> {
         // Stop the application
-        let container_name = Self::build_container_name(project_id, application_id);
+        let container_name = Self::build_container_name(container_name);
         let stop_options = Some(StopContainerOptions { t: 10 });
 
         trace!(
@@ -148,8 +148,8 @@ impl Engine for DockerEngine {
             .await
             .with_context(|| {
                 format!(
-                    "Failed to stop the container for application {}/{}",
-                    project_id, application_id
+                    "Failed to stop the container for application {}",
+                    container_name
                 )
             })?;
 
@@ -169,28 +169,21 @@ impl Engine for DockerEngine {
             .await
             .with_context(|| {
                 format!(
-                    "Failed to remove the container for application {}/{}",
-                    project_id, application_id
+                    "Failed to remove the container for application {}",
+                    container_name
                 )
             })?;
 
         Ok(())
     }
 
-    async fn get_application_status(
-        &self,
-        project_id: &str,
-        application_id: &str,
-    ) -> Result<ApplicationStatus> {
+    async fn get_application_status(&self, container_name: &str) -> Result<ApplicationStatus> {
         // Inspect the container
         let options = Some(InspectContainerOptions { size: false });
 
         match self
             .docker
-            .inspect_container(
-                &Self::build_container_name(project_id, application_id),
-                options,
-            )
+            .inspect_container(&Self::build_container_name(container_name), options)
             .await
         {
             Ok(v) => {
@@ -223,15 +216,15 @@ impl Engine for DockerEngine {
 
                 Err(e).with_context(|| {
                     format!(
-                        "Failed to get the status for application {}/{}",
-                        project_id, application_id
+                        "Failed to get the status for application {}",
+                        container_name
                     )
                 })
             }
         }
     }
 
-    fn get_logs(&self, project_id: &str, application_id: &str) -> BoxStream<Result<Bytes>> {
+    fn get_logs(&self, container_name: &str) -> BoxStream<Result<Bytes>> {
         // Get the logs
         let options = Some(LogsOptions::<String> {
             stdout: true,
@@ -240,10 +233,7 @@ impl Engine for DockerEngine {
         });
 
         self.docker
-            .logs(
-                &Self::build_container_name(project_id, application_id),
-                options,
-            )
+            .logs(&Self::build_container_name(container_name), options)
             .map(|item| {
                 // Map the item to have the correct type
                 item.map(|v| v.into_bytes()).map_err(|e| e.into())
@@ -251,11 +241,7 @@ impl Engine for DockerEngine {
             .boxed()
     }
 
-    async fn get_stats(
-        &self,
-        project_id: &str,
-        application_id: &str,
-    ) -> Result<Option<ApplicationStats>> {
+    async fn get_stats(&self, container_name: &str) -> Result<Option<ApplicationStats>> {
         // Get the stats
         let options = Some(StatsOptions {
             stream: false,
@@ -263,10 +249,7 @@ impl Engine for DockerEngine {
         });
 
         self.docker
-            .stats(
-                &Self::build_container_name(project_id, application_id),
-                options,
-            )
+            .stats(&Self::build_container_name(container_name), options)
             .next()
             .await
             .transpose()
@@ -297,8 +280,8 @@ impl Engine for DockerEngine {
             })
             .with_context(|| {
                 format!(
-                    "Failed to get the statistics for application {}/{}",
-                    project_id, application_id
+                    "Failed to get the statistics for application {}",
+                    container_name
                 )
             })
     }
@@ -319,8 +302,8 @@ impl Engine for DockerEngine {
             .map(|_| {})
             .with_context(|| {
                 format!(
-                    "Failed to remove the image {}:{} for application {}/{}",
-                    app.image_name, app.image_tag, app.project_id, app.application_id
+                    "Failed to remove the image {}:{} for application {}",
+                    app.image_name, app.image_tag, app.container_name
                 )
             })
     }
@@ -344,21 +327,21 @@ fn build_traefik_labels(
     HashMap::from([
         ("traefik.enable".into(), "true".into()),
         (
-            format!("traefik.http.routers.{}.entrypoints", app.application_id),
+            format!("traefik.http.routers.{}.entrypoints", app.container_name),
             "websecure".into(),
         ),
         (
             format!(
                 "traefik.http.services.{}.loadbalancer.server.port",
-                app.application_id
+                app.container_name
             ),
             "80".into(),
         ),
         (
-            format!("traefik.http.routers.{}.rule", app.application_id),
+            format!("traefik.http.routers.{}.rule", app.container_name),
             format!(
                 "Host(`{}.user-app.{}`)",
-                app.application_id, traefik_config.fqdn
+                app.container_name, traefik_config.fqdn
             ),
         ),
     ])

@@ -23,8 +23,7 @@ pub trait Engine {
     /// # Example
     /// ```
     /// let app = Application {
-    ///     application_id: String::from("webapp"),
-    ///     project_id: String::from("test"),
+    ///     container_name: String::from("bob_webapp"),
     ///     image_name: String::from("nginx"),
     ///     image_tag: String::from("latest"),
     ///     ..Default::default()
@@ -39,8 +38,7 @@ pub trait Engine {
     /// Stop a PaaS application.
     ///
     /// # Arguments
-    /// - ID of the project that the application is a part of.
-    /// - ID of the application.
+    /// - Container name of the application
     ///
     /// # Returns
     /// - Nothing, wrapped in a Result.
@@ -50,14 +48,13 @@ pub trait Engine {
     /// let engine = MyEngine::new();
     /// engine.stop_application(&String::from("test"), &String::from("webapp")).await.unwrap();
     /// ```
-    async fn stop_application(&self, project_id: &str, application_id: &str) -> Result<()>;
+    async fn stop_application(&self, container_name: &str) -> Result<()>;
 
     /// # Get application status
     /// Get the running status of a PaaS application.
     ///
     /// # Arguments
-    /// - ID of the project that the application is a part of.
-    /// - ID of the application.
+    /// - Container name of the application
     ///
     /// # Returns
     /// - The running status of the application, wrapped in a Result.
@@ -69,11 +66,7 @@ pub trait Engine {
     ///     .await
     ///     .unwrap();
     /// ```
-    async fn get_application_status(
-        &self,
-        project_id: &str,
-        application_id: &str,
-    ) -> Result<ApplicationStatus>;
+    async fn get_application_status(&self, container_name: &str) -> Result<ApplicationStatus>;
 
     /// # Restart application
     /// Restart a PaaS application.
@@ -102,9 +95,7 @@ pub trait Engine {
     /// ```
     async fn restart_application(&self, app: &Application) -> Result<()> {
         // Try to stop the application
-        self.stop_application(&app.project_id, &app.application_id)
-            .await
-            .ok();
+        self.stop_application(&app.container_name).await.ok();
 
         // Start the application
         self.start_application(app).await
@@ -117,8 +108,7 @@ pub trait Engine {
     /// and until this function was called.
     ///
     /// # Arguments
-    /// - ID of the project that the application is a part of.
-    /// - ID of the application.
+    /// - Container name of the application
     ///
     /// # Returns
     /// A stream of bytes corresponding to the logs, wrapped in a Result.
@@ -134,14 +124,13 @@ pub trait Engine {
     ///     })
     ///     .await;
     /// ```
-    fn get_logs(&self, project_id: &str, application_id: &str) -> BoxStream<Result<Bytes>>;
+    fn get_logs(&self, container_name: &str) -> BoxStream<Result<Bytes>>;
 
     /// # Get stats
     /// Get the resource usage statistics of a PaaS application.
     ///
     /// # Arguments
-    /// - ID of the project that the application is a part of.
-    /// - ID of the application.
+    /// - Container name of the application
     ///
     /// # Returns
     /// - The statistics, wrapped in a Result.
@@ -155,11 +144,7 @@ pub trait Engine {
     ///
     /// println!("{:#?}", stats);
     /// ```
-    async fn get_stats(
-        &self,
-        project_id: &str,
-        application_id: &str,
-    ) -> Result<Option<ApplicationStats>>;
+    async fn get_stats(&self, container_name: &str) -> Result<Option<ApplicationStats>>;
 
     /// # Remove application image
     /// Remove the container image of a PaaS application from the local cache.
@@ -167,8 +152,7 @@ pub trait Engine {
     /// The image is *NOT* removed from the cache if still used by at least one container.
     ///
     /// # Arguments
-    /// - ID of the project that the application is a part of.
-    /// - ID of the application.
+    /// - [Application](Application) struct.
     ///
     /// # Returns
     /// - Nothing, wrapped in a Result.
