@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     );
 
     // Init the Docker engine
-    let engine = DockerEngine::new();
+    let engine = DockerEngine::new().await;
 
     grpc_server::start_server(engine).await.map_err(|e| {
         error!("Failed to start gRPC server: {}", e);
