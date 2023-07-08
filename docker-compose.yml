@@ -22,8 +22,8 @@ services:
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
-      # Let's encrypt certificates
-      - ./letsencrypt:/letsencrypt
+      # Uncomment to enable storage of Let's encrypt certificates on host
+      #- ./letsencrypt:/letsencrypt
     command:
       - --providers.docker=true
       - --providers.docker.network=pomegranate-proxy-network
