@@ -48,28 +48,28 @@ impl DockerEngine {
             filters: HashMap::from([("name", vec![config.traefik_config.network_name.as_ref()])]),
         };
 
-        let result_networks = docker.list_networks(Some(list_options)).await;
+        match docker.list_networks(Some(list_options)).await {
+            Ok(v) if v.len() == 0 => {
+                // Create the fallback network
+                let network_options: CreateNetworkOptions<&str> = CreateNetworkOptions {
+                    name: &config.traefik_config.network_name,
+                    ..Default::default()
+                };
 
-        if result_networks.is_err() {
-            error!("Couldn't list networks !")
-        } else if result_networks.is_ok() && result_networks.unwrap_or_default().len() == 0 {
-            // Create the fallback network
-            let network_options: CreateNetworkOptions<&str> = CreateNetworkOptions {
-                name: &config.traefik_config.network_name,
-                ..Default::default()
-            };
-
-            let result_network_creation = docker.create_network(network_options).await;
-            match result_network_creation {
-                Ok(_) => trace!(
-                    "Docker network created: {}",
-                    &config.traefik_config.network_name
-                ),
-                Err(_) => error!(
-                    "Failed to create Docker network: {}",
-                    &config.traefik_config.network_name
-                ),
+                let result_network_creation = docker.create_network(network_options).await;
+                match result_network_creation {
+                    Ok(_) => trace!(
+                        "Docker network created: {}",
+                        &config.traefik_config.network_name
+                    ),
+                    Err(_) => error!(
+                        "Failed to create Docker network: {}",
+                        &config.traefik_config.network_name
+                    ),
+                }
             }
+            Ok(_) => (),
+            Err(_) => error!("Failed to list Docker networks"),
         }
 
         DockerEngine { docker, config }
