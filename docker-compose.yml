@@ -50,5 +50,6 @@ services:
       - pomegranate-proxy-network
 
 networks:
+  # The network to connect client containers to traefik
   pomegranate-proxy-network:
     name: ${POMEGRANATE_DOCKER_NETWORK_NAME}
