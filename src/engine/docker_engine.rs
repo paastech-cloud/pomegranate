@@ -44,9 +44,9 @@ impl DockerEngine {
         let config = ApplicationConfig::from_env();
 
         // Create the network if needed
-        let mut filters: HashMap<&str, Vec<&str>> = HashMap::new();
-        filters.insert("name", vec![&config.traefik_config.network_name]);
-        let list_options: ListNetworksOptions<&str> = ListNetworksOptions { filters };
+        let list_options: ListNetworksOptions<&str> = ListNetworksOptions {
+            filters: HashMap::from([("name", vec![config.traefik_config.network_name.as_ref()])]),
+        };
 
         let result_networks = docker.list_networks(Some(list_options)).await;
 
