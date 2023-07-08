@@ -54,8 +54,12 @@ impl Pomegranate for PomegranateGrpcServer {
             .get_application_status(&container_name)
             .await
         {
-            Ok(_) => {
-                trace!("Got app status of {}, restarting it...", container_name);
+            Ok(status) => {
+                trace!(
+                    "Got app status of {} : {:?}, restarting it...",
+                    container_name,
+                    status
+                );
                 match self.docker_engine.restart_application(&app).await {
                     Ok(_) => {
                         trace!("Restarted app {}", container_name);
@@ -146,21 +150,22 @@ impl Pomegranate for PomegranateGrpcServer {
         let app = get_app(&container_name, &image_name, &image_tag, HashMap::new());
 
         match self.docker_engine.stop_application(&container_name).await {
-            Ok(_) => match self.docker_engine.remove_application_image(&app).await {
-                Ok(_) => {
-                    trace!("Deleted app {}", container_name);
-                }
-                Err(e) => {
-                    trace!("Failed to delete app {}: {}", container_name, e);
-                    return Err(Status::internal(format!(
-                        "Failed to delete application {}: {}",
-                        container_name, e
-                    )));
-                }
-            },
+            Ok(_) => {
+                trace!("Stopped app {}", container_name);
+            }
             Err(e) => {
+                trace!("Could not stop app {}: {}", container_name, e);
+            }
+        };
+
+        match self.docker_engine.remove_application_image(&app).await {
+            Ok(_) => {
+                trace!("Deleted app {}", container_name);
+            }
+            Err(e) => {
+                trace!("Failed to delete app {}: {}", container_name, e);
                 return Err(Status::internal(format!(
-                    "Failed to stop application {}: {}",
+                    "Failed to delete application {}: {}",
                     container_name, e
                 )));
             }
