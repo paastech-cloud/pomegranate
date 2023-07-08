@@ -187,6 +187,13 @@ impl Pomegranate for PomegranateGrpcServer {
         let logs: Vec<Result<Bytes, _>> =
             self.docker_engine.get_logs(&container_name).collect().await;
 
+        if let Some(Err(err)) = logs.last() {
+            return Err(Status::internal(format!(
+                "Failed to get logs of application {}: {}",
+                container_name, err
+            )));
+        }
+
         let output = logs
             .iter()
             .map(|item| match item {
