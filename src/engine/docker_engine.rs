@@ -14,6 +14,7 @@ use futures::StreamExt;
 use log::{info, trace};
 use std::collections::HashMap;
 
+use super::errors::EngineError;
 use super::Engine;
 use crate::application::{ApplicationStats, ApplicationStatus};
 use crate::config::application_config::ApplicationConfig;
@@ -62,7 +63,7 @@ impl DockerEngine {
 
 #[async_trait]
 impl Engine for DockerEngine {
-    async fn start_application(&self, app: &Application) -> Result<()> {
+    async fn start_application(&self, app: &Application) -> Result<(), EngineError> {
         // Create the Docker container configuration
         let options = Some(CreateContainerOptions {
             name: Self::build_container_name(&app.container_name),
@@ -132,7 +133,7 @@ impl Engine for DockerEngine {
         Ok(())
     }
 
-    async fn stop_application(&self, container_name: &str) -> Result<()> {
+    async fn stop_application(&self, container_name: &str) -> Result<(), EngineError> {
         // Stop the application
         let container_name = Self::build_container_name(container_name);
         let stop_options = Some(StopContainerOptions { t: 10 });
@@ -177,7 +178,10 @@ impl Engine for DockerEngine {
         Ok(())
     }
 
-    async fn get_application_status(&self, container_name: &str) -> Result<ApplicationStatus> {
+    async fn get_application_status(
+        &self,
+        container_name: &str,
+    ) -> Result<ApplicationStatus, EngineError> {
         // Inspect the container
         let options = Some(InspectContainerOptions { size: false });
 
@@ -214,17 +218,19 @@ impl Engine for DockerEngine {
                     }
                 }
 
-                Err(e).with_context(|| {
-                    format!(
-                        "Failed to get the status for application {}",
-                        container_name
-                    )
-                })
+                Err(e)
+                    .with_context(|| {
+                        format!(
+                            "Failed to get the status for application {}",
+                            container_name
+                        )
+                    })
+                    .map_err(|e| e.into())
             }
         }
     }
 
-    fn get_logs(&self, container_name: &str) -> BoxStream<Result<Bytes>> {
+    fn get_logs(&self, container_name: &str) -> BoxStream<Result<Bytes, EngineError>> {
         // Get the logs
         let options = Some(LogsOptions::<String> {
             stdout: true,
@@ -241,7 +247,10 @@ impl Engine for DockerEngine {
             .boxed()
     }
 
-    async fn get_stats(&self, container_name: &str) -> Result<Option<ApplicationStats>> {
+    async fn get_stats(
+        &self,
+        container_name: &str,
+    ) -> Result<Option<ApplicationStats>, EngineError> {
         // Get the stats
         let options = Some(StatsOptions {
             stream: false,
@@ -284,9 +293,10 @@ impl Engine for DockerEngine {
                     container_name
                 )
             })
+            .map_err(|err| err.into())
     }
 
-    async fn remove_application_image(&self, app: &Application) -> Result<()> {
+    async fn remove_application_image(&self, app: &Application) -> Result<(), EngineError> {
         // Remove the image from the cache
         let options = Some(RemoveImageOptions {
             ..Default::default()
@@ -306,6 +316,7 @@ impl Engine for DockerEngine {
                     app.image_name, app.image_tag, app.container_name
                 )
             })
+            .map_err(|e| e.into())
     }
 }
 

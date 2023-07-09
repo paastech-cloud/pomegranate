@@ -3,10 +3,12 @@ use futures::StreamExt;
 use log::{info, trace};
 use std::collections::HashMap;
 use std::str::from_utf8;
+use tonic::codegen::http::StatusCode;
 use tonic::{transport::Server, Request, Response, Status};
 
 use crate::application::{Application, ApplicationStatus};
 use crate::engine::docker_engine::DockerEngine;
+use crate::engine::errors::EngineError;
 use crate::engine::Engine;
 use paastech_proto::pomegranate::get_status_response::SingleContainerStatus;
 use paastech_proto::pomegranate::pomegranate_server::{Pomegranate, PomegranateServer};
@@ -57,19 +59,16 @@ impl Pomegranate for PomegranateGrpcServer {
             Ok(status) => {
                 trace!(
                     "Got app status of {} : {:?}, restarting it...",
-                    container_name,
-                    status
+                    container_name, status
                 );
                 match self.docker_engine.restart_application(&app).await {
-                    Ok(_) => {
-                        trace!("Restarted app {}", container_name);
-                    }
+                    Ok(_) => trace!("Restarted app {}", container_name),
                     Err(e) => {
                         trace!("Failed to restart app {}: {}", container_name, e);
-                        return Err(Status::internal(format!(
-                            "Failed to restart application {}: {}",
-                            container_name, e
-                        )));
+                        return Err(translate_err(
+                            &e,
+                            format!("Failed to restart application {}: {}", container_name, e),
+                        ));
                     }
                 };
             }
@@ -79,15 +78,13 @@ impl Pomegranate for PomegranateGrpcServer {
                     container_name
                 );
                 match self.docker_engine.start_application(&app).await {
-                    Ok(_) => {
-                        trace!("Started app {}", container_name);
-                    }
+                    Ok(_) => trace!("Started app {}", container_name),
                     Err(e) => {
                         trace!("Failed to start app {}: {}", container_name, e);
-                        return Err(Status::internal(format!(
-                            "Failed to start application {}: {}",
-                            container_name, e
-                        )));
+                        return Err(translate_err(
+                            &e,
+                            format!("Failed to start application {}: {}", container_name, e),
+                        ));
                     }
                 };
             }
@@ -118,10 +115,10 @@ impl Pomegranate for PomegranateGrpcServer {
             }
             Err(e) => {
                 trace!("Failed to stop app {}: {}", container_name, e);
-                return Err(Status::internal(format!(
-                    "Failed to stop application {}: {}",
-                    container_name, e
-                )));
+                return Err(translate_err(
+                    &e,
+                    format!("Failed to stop application {}: {}", container_name, e),
+                ));
             }
         };
 
@@ -164,10 +161,10 @@ impl Pomegranate for PomegranateGrpcServer {
             }
             Err(e) => {
                 trace!("Failed to delete app {}: {}", container_name, e);
-                return Err(Status::internal(format!(
-                    "Failed to delete application {}: {}",
-                    container_name, e
-                )));
+                return Err(translate_err(
+                    &e,
+                    format!("Failed to delete application {}: {}", container_name, e),
+                ));
             }
         };
 
@@ -193,10 +190,13 @@ impl Pomegranate for PomegranateGrpcServer {
             self.docker_engine.get_logs(&container_name).collect().await;
 
         if let Some(Err(err)) = logs.last() {
-            return Err(Status::internal(format!(
-                "Failed to get logs of application {}: {}",
-                container_name, err
-            )));
+            return Err(translate_err(
+                &err,
+                format!(
+                    "Failed to get logs of application {}: {}",
+                    container_name, err
+                ),
+            ));
         }
 
         let output = logs
@@ -233,10 +233,13 @@ impl Pomegranate for PomegranateGrpcServer {
             .await
             .map_err(|e| {
                 trace!("Failed to get stats of app {}: {}", container_name, e);
-                Status::internal(format!(
-                    "Failed to get stats of application {}: {}",
-                    container_name, e
-                ))
+                translate_err(
+                    &e,
+                    format!(
+                        "Failed to get stats of application {}: {}",
+                        container_name, e
+                    ),
+                )
             })?
             .ok_or(Status::not_found(format!(
                 "Failed to get stats of application {}: {}",
@@ -323,6 +326,22 @@ fn get_app(
         image_tag: String::from(image_tag),
         env_variables: env_vars,
     }
+}
+
+/// # Translate Error
+/// Map the EngineError to a gRPC Status
+/// # Returns
+/// A gRPC `Status`
+fn translate_err(err: &EngineError, message: String) -> Status {
+    return match err.code {
+        StatusCode::NOT_FOUND => Status::not_found(message),
+        StatusCode::BAD_REQUEST => Status::invalid_argument(message),
+        StatusCode::CONFLICT => Status::already_exists(message),
+        StatusCode::FORBIDDEN => Status::permission_denied(message),
+        StatusCode::UNAUTHORIZED => Status::unauthenticated(message),
+        StatusCode::SERVICE_UNAVAILABLE => Status::unavailable(message),
+        _ => Status::internal(message),
+    };
 }
 
 /// # Start Server

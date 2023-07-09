@@ -1,4 +1,5 @@
 pub mod docker_engine;
+pub mod errors;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -6,6 +7,8 @@ use bytes::Bytes;
 use futures::stream::BoxStream;
 
 use crate::application::{Application, ApplicationStats, ApplicationStatus};
+
+use self::errors::EngineError;
 
 /// # Execution engine
 /// A trait for an execution engine that can start PaaS applications.
@@ -32,7 +35,7 @@ pub trait Engine {
     /// let engine = MyEngine::new();
     /// engine.start_application(&app).await.unwrap();
     /// ```
-    async fn start_application(&self, app: &Application) -> Result<()>;
+    async fn start_application(&self, app: &Application) -> Result<(), EngineError>;
 
     /// # Stop application
     /// Stop a PaaS application.
@@ -48,7 +51,7 @@ pub trait Engine {
     /// let engine = MyEngine::new();
     /// engine.stop_application(&String::from("test"), &String::from("webapp")).await.unwrap();
     /// ```
-    async fn stop_application(&self, container_name: &str) -> Result<()>;
+    async fn stop_application(&self, container_name: &str) -> Result<(), EngineError>;
 
     /// # Get application status
     /// Get the running status of a PaaS application.
@@ -66,7 +69,10 @@ pub trait Engine {
     ///     .await
     ///     .unwrap();
     /// ```
-    async fn get_application_status(&self, container_name: &str) -> Result<ApplicationStatus>;
+    async fn get_application_status(
+        &self,
+        container_name: &str,
+    ) -> Result<ApplicationStatus, EngineError>;
 
     /// # Restart application
     /// Restart a PaaS application.
@@ -93,7 +99,7 @@ pub trait Engine {
     /// let engine = MyEngine::new();
     /// engine.restart_application(&app).await.unwrap();
     /// ```
-    async fn restart_application(&self, app: &Application) -> Result<()> {
+    async fn restart_application(&self, app: &Application) -> Result<(), EngineError> {
         // Try to stop the application
         self.stop_application(&app.container_name).await.ok();
 
@@ -124,7 +130,7 @@ pub trait Engine {
     ///     })
     ///     .await;
     /// ```
-    fn get_logs(&self, container_name: &str) -> BoxStream<Result<Bytes>>;
+    fn get_logs(&self, container_name: &str) -> BoxStream<Result<Bytes, EngineError>>;
 
     /// # Get stats
     /// Get the resource usage statistics of a PaaS application.
@@ -144,7 +150,10 @@ pub trait Engine {
     ///
     /// println!("{:#?}", stats);
     /// ```
-    async fn get_stats(&self, container_name: &str) -> Result<Option<ApplicationStats>>;
+    async fn get_stats(
+        &self,
+        container_name: &str,
+    ) -> Result<Option<ApplicationStats>, EngineError>;
 
     /// # Remove application image
     /// Remove the container image of a PaaS application from the local cache.
@@ -172,5 +181,5 @@ pub trait Engine {
     ///     .await
     ///     .unwrap();
     /// ```
-    async fn remove_application_image(&self, app: &Application) -> Result<()>;
+    async fn remove_application_image(&self, app: &Application) -> Result<(), EngineError>;
 }
