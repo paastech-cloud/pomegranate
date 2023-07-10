@@ -48,7 +48,8 @@ impl From<bollard::errors::Error> for EngineError {
                 status_code,
                 message: _,
             } => EngineError {
-                code: StatusCode::from_u16(status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                code: StatusCode::from_u16(status_code)
+                    .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                 error: anyhow::Error::new(err),
             },
             _ => EngineError {
