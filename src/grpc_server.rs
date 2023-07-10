@@ -59,7 +59,8 @@ impl Pomegranate for PomegranateGrpcServer {
             Ok(status) => {
                 trace!(
                     "Got app status of {} : {:?}, restarting it...",
-                    container_name, status
+                    container_name,
+                    status
                 );
                 match self.docker_engine.restart_application(&app).await {
                     Ok(_) => trace!("Restarted app {}", container_name),
