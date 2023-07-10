@@ -3,16 +3,19 @@ use futures::StreamExt;
 use log::{info, trace};
 use std::collections::HashMap;
 use std::str::from_utf8;
+use tonic::codegen::http::StatusCode;
 use tonic::{transport::Server, Request, Response, Status};
 
-use crate::application::Application;
+use crate::application::{Application, ApplicationStatus};
 use crate::engine::docker_engine::DockerEngine;
+use crate::engine::errors::EngineError;
 use crate::engine::Engine;
+use paastech_proto::pomegranate::get_status_response::SingleContainerStatus;
 use paastech_proto::pomegranate::pomegranate_server::{Pomegranate, PomegranateServer};
 use paastech_proto::pomegranate::{
-    ApplyConfigDeploymentRequest, DeleteDeploymentRequest, DeploymentLogRequest,
-    DeploymentStatRequest, DeploymentStats, DeploymentStatusRequest, ResponseMessage,
-    ResponseMessageStatus, RestartDeploymentRequest, StartDeploymentRequest, StopDeploymentRequest,
+    DeleteImageRequest, DeployRequest, EmptyResponse, GetLogsRequest, GetLogsResponse,
+    GetStatisticsRequest, GetStatisticsResponse, GetStatusRequest, GetStatusResponse,
+    StopDeployRequest,
 };
 
 /// # Pomegranate gRPC server
@@ -24,241 +27,188 @@ pub struct PomegranateGrpcServer {
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
     /// # Start Deployment
-    /// Start a deployment from its `uuid`, `project_uuid` and `user_uuid`.
+    /// Start a deployment from its `container_name`, `image_name`, `image_tag` and `env_vars`.
     /// # Arguments
-    /// The request containing the `uuid` of the deployment to start.
+    /// The request containing
+    /// - The `container_name` of the deployment to start.
+    /// - The `image_name` of the deployment to start.
+    /// - The `image_tag` of the deployment to start.
+    /// - The `env_vars` of the deployment to start.
     /// # Returns
-    /// A message indicating the deployment was started, wrapped in a Result.
+    /// An empty response if the deployment was started, wrapped in a Result.
     /// # Errors
     /// If the deployment does not exist, returns a `not_found` error
     /// If the deployment failed to start, returns an `internal` error
-    async fn start_deployment(
+    async fn deploy(
         &self,
-        request: Request<StartDeploymentRequest>,
-    ) -> Result<Response<ResponseMessage>, Status> {
+        request: Request<DeployRequest>,
+    ) -> Result<Response<EmptyResponse>, Status> {
         let request = request.into_inner();
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
-        let user_uuid = request.user_uuid;
+        let container_name = request.container_name;
+        let image_name = request.image_name;
+        let image_tag = request.image_tag;
+        let env_vars = request.env_vars;
 
-        trace!("Creating app {}", deployment_uuid);
+        trace!("Getting app...");
 
-        let app = get_app(&deployment_uuid, &project_uuid, &user_uuid);
+        let app = get_app(&container_name, &image_name, &image_tag, env_vars);
 
-        trace!("Starting app {}", deployment_uuid);
+        trace!("Getting app status of {}", container_name);
 
-        let message = match self.docker_engine.start_application(&app).await {
-            Ok(_) => {
-                trace!("Started app {}", deployment_uuid);
-                format!("Started application {}", app.project_id)
-            }
-            Err(e) => {
-                trace!("Failed to start app {}: {}", deployment_uuid, e);
-                return Err(Status::internal(format!(
-                    "Failed to start application {}: {}",
-                    app.project_id, e
-                )));
-            }
-        };
-
-        let response = ResponseMessage { message };
-        Ok(Response::new(response))
-    }
-
-    /// # Restart deployment
-    /// Restart a deployment from its `uuid`, `project_uuid` and `user_uuid`.
-    /// # Arguments
-    /// The request containing the `uuid` of the deployment to restart.
-    /// # Returns
-    /// A message indicating the deployment was restarted, wrapped in a Result.
-    /// # Errors
-    /// If the deployment does not exist, returns a `not_found` error.
-    /// If the deployment failed to restart, returns an `internal` error.
-    async fn restart_deployment(
-        &self,
-        request: Request<RestartDeploymentRequest>,
-    ) -> Result<Response<ResponseMessage>, Status> {
-        let request = request.into_inner();
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
-        let user_uuid = request.user_uuid;
-
-        trace!("Creating app {}", deployment_uuid);
-
-        let app = get_app(&deployment_uuid, &project_uuid, &user_uuid);
-
-        let message = match self.docker_engine.restart_application(&app).await {
-            Ok(_) => {
-                trace!("Restarted app {}", deployment_uuid);
-                format!("Restarted application {}", app.project_id)
-            }
-            Err(e) => {
-                trace!("Failed to restart app {}: {}", deployment_uuid, e);
-                return Err(Status::internal(format!(
-                    "Failed to restart application {}: {}",
-                    app.project_id, e
-                )));
-            }
-        };
-
-        let response = ResponseMessage { message };
-        Ok(Response::new(response))
-    }
-
-    /// # Delete Deployment
-    /// Delete a configuration to a deployment from its `uuid`, `project_uuid` and `user_uuid`.
-    /// # Arguments
-    /// The request containing the `uuid` of the deployment to delete.
-    /// # Returns
-    /// A message indicating the deployment was deleted, wrapped in a Result.
-    /// # Errors
-    /// If the deployment does not exist, returns a `not_found` error.
-    /// If the deployment could not be deleted, returns an `internal` error.
-    async fn delete_deployment(
-        &self,
-        request: Request<DeleteDeploymentRequest>,
-    ) -> Result<Response<ResponseMessage>, Status> {
-        let request = request.into_inner();
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
-        let user_uuid = request.user_uuid;
-
-        let app = get_app(&deployment_uuid, &project_uuid, &user_uuid);
-
-        let message = match self
+        match self
             .docker_engine
-            .stop_application(project_uuid.as_str(), deployment_uuid.as_str())
-            .await
-        {
-            Ok(_) => match self.docker_engine.remove_application_image(&app).await {
-                Ok(_) => {
-                    trace!("Deleted app {}", deployment_uuid);
-                    format!("Deleted application {}", app.project_id)
-                }
-                Err(e) => {
-                    trace!("Failed to delete app {}: {}", deployment_uuid, e);
-                    return Err(Status::internal(format!(
-                        "Failed to delete application {}: {}",
-                        app.project_id, e
-                    )));
-                }
-            },
-            Err(e) => {
-                return Err(Status::internal(format!(
-                    "Failed to stop application {}: {}",
-                    deployment_uuid, e
-                )));
-            }
-        };
-
-        let response = ResponseMessage { message };
-        Ok(Response::new(response))
-    }
-
-    /// # Stop Deployment
-    /// Stop a deployment from its `uuid` and `project_uuid`.
-    /// # Arguments
-    /// The request containing the `uuid` of the deployment to stop.
-    /// # Returns
-    /// A message indicating the deployment was stopped, wrapped in a Result.
-    /// # Errors
-    /// If the deployment does not exist, returns a `not_found` error.
-    /// If the deployment failed to stop, returns an `internal` error.
-    async fn stop_deployment(
-        &self,
-        request: Request<StopDeploymentRequest>,
-    ) -> Result<Response<ResponseMessage>, Status> {
-        let request = request.into_inner();
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
-
-        let message = match self
-            .docker_engine
-            .stop_application(project_uuid.as_str(), deployment_uuid.as_str())
-            .await
-        {
-            Ok(_) => {
-                trace!("Stopped app {}", deployment_uuid);
-                format!("Stopped application {}", deployment_uuid)
-            }
-            Err(e) => {
-                trace!("Failed to stop app {}: {}", deployment_uuid, e);
-                return Err(Status::internal(format!(
-                    "Failed to stop application {}: {}",
-                    deployment_uuid, e
-                )));
-            }
-        };
-
-        let response = ResponseMessage { message };
-        Ok(Response::new(response))
-    }
-
-    /// # Deployment Status
-    /// Get the status of a deployment from its `uuid` and `project_uuid`.
-    /// # Arguments
-    /// The request containing the `uuid` of the deployment to get the status of.
-    /// # Returns
-    /// The status of the deployment, wrapped in a Result.
-    /// # Errors
-    /// If the deployment does not exist, returns a `not_found` error.
-    /// If the deployment status could not be checked, returns an `internal` error.
-    async fn deployment_status(
-        &self,
-        request: Request<DeploymentStatusRequest>,
-    ) -> Result<Response<ResponseMessageStatus>, Status> {
-        let request = request.into_inner();
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
-
-        let status: (String, String) = match self
-            .docker_engine
-            .get_application_status(&project_uuid, &deployment_uuid)
+            .get_application_status(&container_name)
             .await
         {
             Ok(status) => {
-                trace!("Status of app {}: {:?}", deployment_uuid, status);
-                (
-                    format!("Application {} is {:?}", deployment_uuid, status),
-                    format!("{:?}", status),
-                )
+                trace!(
+                    "Got app status of {} : {:?}, restarting it...",
+                    container_name,
+                    status
+                );
+                match self.docker_engine.restart_application(&app).await {
+                    Ok(_) => trace!("Restarted app {}", container_name),
+                    Err(e) => {
+                        trace!("Failed to restart app {}: {}", container_name, e);
+                        return Err(translate_err(
+                            &e,
+                            format!("Failed to restart application {}: {}", container_name, e),
+                        ));
+                    }
+                };
             }
-            Err(e) => {
-                trace!("Failed to get status of app {}: {}", deployment_uuid, e);
-                return Err(Status::internal(format!(
-                    "Failed to get status of application {}: {}",
-                    deployment_uuid, e
-                )));
+            Err(_) => {
+                trace!(
+                    "Failed to get app status of {}, starting it",
+                    container_name
+                );
+                match self.docker_engine.start_application(&app).await {
+                    Ok(_) => trace!("Started app {}", container_name),
+                    Err(e) => {
+                        trace!("Failed to start app {}: {}", container_name, e);
+                        return Err(translate_err(
+                            &e,
+                            format!("Failed to start application {}: {}", container_name, e),
+                        ));
+                    }
+                };
             }
         };
 
-        let response = ResponseMessageStatus {
-            message: status.0,
-            status: status.1,
+        Ok(Response::new(EmptyResponse {}))
+    }
+
+    /// # Stop Deployment
+    /// Stop a deployment from its `container_name`.
+    /// # Arguments
+    /// The request containing the `container_name` of the deployment to stop.
+    /// # Returns
+    /// An empty response if the deployment was stopped, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment failed to stop, returns an `internal` error.
+    async fn stop_deploy(
+        &self,
+        request: Request<StopDeployRequest>,
+    ) -> Result<Response<EmptyResponse>, Status> {
+        let request = request.into_inner();
+        let container_name = request.container_name;
+
+        match self.docker_engine.stop_application(&container_name).await {
+            Ok(_) => {
+                trace!("Stopped app {}", container_name);
+            }
+            Err(e) => {
+                trace!("Failed to stop app {}: {}", container_name, e);
+                return Err(translate_err(
+                    &e,
+                    format!("Failed to stop application {}: {}", container_name, e),
+                ));
+            }
         };
-        Ok(Response::new(response))
+
+        Ok(Response::new(EmptyResponse {}))
+    }
+
+    /// # Delete Deployment
+    /// Delete a configuration to a deployment from its `container_name`, `image_name` and `image_tag`.
+    /// # Arguments
+    /// The request containing:
+    /// - The `container_name` of the deployment to delete.
+    /// - The `image_name` of the deployment to delete.
+    /// - The `image_tag` of the deployment to delete.
+    /// # Returns
+    /// An empty response if the deployment was deleted, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment could not be deleted, returns an `internal` error.
+    async fn delete_image(
+        &self,
+        request: Request<DeleteImageRequest>,
+    ) -> Result<Response<EmptyResponse>, Status> {
+        let request = request.into_inner();
+        let container_name = request.container_name;
+        let image_name = request.image_name;
+        let image_tag = request.image_tag;
+
+        trace!("Getting app...");
+        let app = get_app(&container_name, &image_name, &image_tag, HashMap::new());
+
+        match self.docker_engine.stop_application(&container_name).await {
+            Ok(_) => {
+                trace!("Stopped app {}", container_name);
+            }
+            Err(e) => {
+                trace!("Could not stop app {}: {}", container_name, e);
+            }
+        };
+
+        match self.docker_engine.remove_application_image(&app).await {
+            Ok(_) => {
+                trace!("Deleted app {}", container_name);
+            }
+            Err(e) => {
+                trace!("Failed to delete app {}: {}", container_name, e);
+                return Err(translate_err(
+                    &e,
+                    format!("Failed to delete application {}: {}", container_name, e),
+                ));
+            }
+        };
+
+        Ok(Response::new(EmptyResponse {}))
     }
 
     /// # Deployment Logs
-    /// Get the logs of a deployment from its `uuid` and `project_uuid`.
+    /// Get the logs of a deployment from its `container_name`.
     /// # Arguments
-    /// The request containing the `uuid` and `project_uuid` of the deployment to get the logs of.
+    /// The request containing the `container_name` of the deployment to get the logs from.
     /// # Returns
     /// The logs of the deployment, wrapped in a Result.
-    async fn deployment_log(
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment logs could not be retrieved, returns an `internal` error.
+    async fn get_logs(
         &self,
-        request: Request<DeploymentLogRequest>,
-    ) -> Result<Response<ResponseMessage>, Status> {
+        request: Request<GetLogsRequest>,
+    ) -> Result<Response<GetLogsResponse>, Status> {
         let request = request.into_inner();
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
+        let container_name = request.container_name;
 
-        trace!("Getting logs of app {}", deployment_uuid);
-        let logs: Vec<Result<Bytes, _>> = self
-            .docker_engine
-            .get_logs(&project_uuid, &deployment_uuid)
-            .collect()
-            .await;
+        trace!("Getting logs of app {}", container_name);
+
+        let logs: Vec<Result<Bytes, _>> =
+            self.docker_engine.get_logs(&container_name).collect().await;
+
+        if let Some(Err(err)) = logs.last() {
+            return Err(translate_err(
+                err,
+                format!(
+                    "Failed to get logs of application {}: {}",
+                    container_name, err
+                ),
+            ));
+        }
 
         let output = logs
             .iter()
@@ -269,45 +219,48 @@ impl Pomegranate for PomegranateGrpcServer {
             .collect::<Vec<String>>()
             .join("\n");
 
-        let response = ResponseMessage { message: output };
-
+        let response = GetLogsResponse { logs: output };
         Ok(Response::new(response))
     }
 
-    /// # Deployment Logs
-    /// Get the logs of a deployment from its `uuid` and `project_uuid`.
+    /// # Deployment Stats
+    /// Get the stats of a deployment from its `container_name`.
     /// # Arguments
-    /// The request containing the `uuid` and `project_uuid` of the deployment to get the stats of.
+    /// The request containing the `container_name` of the deployment to get the stats from.
     /// # Returns
     /// The stats of the deployment, wrapped in a Result.
-    async fn deployment_stat(
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment stats could not be retrieved, returns an `internal` error.
+    async fn get_statistics(
         &self,
-        request: Request<DeploymentStatRequest>,
-    ) -> Result<Response<DeploymentStats>, Status> {
+        request: Request<GetStatisticsRequest>,
+    ) -> Result<Response<GetStatisticsResponse>, Status> {
         let request = request.into_inner();
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
+        let container_name = request.container_name;
 
-        trace!("Getting stats of app {}", deployment_uuid);
+        trace!("Getting stats of app {}", container_name);
 
         let stats = self
             .docker_engine
-            .get_stats(&project_uuid, &deployment_uuid)
+            .get_stats(&container_name)
             .await
             .map_err(|e| {
-                trace!("Failed to get stats of app {}: {}", deployment_uuid, e);
-                Status::internal(format!(
-                    "Failed to get stats of application {}: {}",
-                    deployment_uuid, e
-                ))
+                trace!("Failed to get stats of app {}: {}", container_name, e);
+                translate_err(
+                    &e,
+                    format!(
+                        "Failed to get stats of application {}: {}",
+                        container_name, e
+                    ),
+                )
             })?
             .ok_or(Status::not_found(format!(
                 "Failed to get stats of application {}: {}",
-                deployment_uuid, "Not found"
+                container_name, "Not found"
             )))?;
 
-        let response = DeploymentStats {
-            message: format!("Stats of app {}", deployment_uuid),
+        let response = GetStatisticsResponse {
             cpu_usage: stats.cpu_usage.unwrap_or_default(),
             memory_usage: stats.memory_usage.unwrap_or_default(),
             memory_limit: stats.memory_limit.unwrap_or_default(),
@@ -315,75 +268,52 @@ impl Pomegranate for PomegranateGrpcServer {
         Ok(Response::new(response))
     }
 
-    /// # Apply Config Deployment
-    /// Apply a configuration to a deployment from its `uuid`, `project_uuid` and `user_uuid`.
+    /// # Deployment Status
+    /// Get the status of a deployment from its `container_name`.
     /// # Arguments
-    /// The request containing the `uuid` of the deployment to apply the configuration to, as well as its configuration in JSON format.
+    /// The request containing the `container_name` of the deployment to get the status from.
     /// # Returns
-    /// A message indicating the configuration was applied successfully, wrapped in a Result.
+    /// The status of the deployment, wrapped in a Result.
     /// # Errors
-    /// If the JSON configuration is invalid, returns an `invalid_argument` error.
     /// If the deployment does not exist, returns a `not_found` error.
-    /// If the configuration could not be applied, returns an `internal` error.
-    async fn apply_config_deployment(
+    /// If the deployment status could not be checked, returns an `internal` error.
+    async fn get_status(
         &self,
-        request: Request<ApplyConfigDeploymentRequest>,
-    ) -> Result<Response<ResponseMessage>, Status> {
+        request: Request<GetStatusRequest>,
+    ) -> Result<Response<GetStatusResponse>, Status> {
         let request = request.into_inner();
-        let config = request.config;
-        let deployment_uuid = request.deployment_uuid;
-        let project_uuid = request.project_uuid;
-        let user_uuid = request.user_uuid;
+        let container_name = request.container_name;
 
-        trace!("Transforming config string to hashmap");
+        let mut output: Vec<SingleContainerStatus> = vec![];
 
-        let hashmap_config: HashMap<String, String> = match serde_json::from_str(&config) {
-            Ok(config) => {
-                trace!("JSON config parsed successfully for {}", deployment_uuid);
-                config
-            }
-            Err(e) => {
-                trace!("Failed to parse json config: {}", e);
-                return Err(Status::invalid_argument(format!(
-                    "Failed to parse json config: {}",
-                    e
-                )));
-            }
+        for c in container_name.iter() {
+            trace!("Getting status of app {}", c);
+
+            match self.docker_engine.get_application_status(c).await {
+                Ok(status) => {
+                    trace!("Status of app {}: {:?}", c, status);
+                    let mapped_status = match status {
+                        ApplicationStatus::Unknown => 0,
+                        ApplicationStatus::Starting => 1,
+                        ApplicationStatus::Running => 2,
+                        ApplicationStatus::Stopping => 3,
+                        ApplicationStatus::Stopped => 4,
+                    };
+
+                    output.push(SingleContainerStatus {
+                        container_name: c.to_string(),
+                        container_status: mapped_status,
+                    });
+                }
+                Err(e) => {
+                    trace!("Failed to get status of app {}: {}", c, e);
+                }
+            };
+        }
+
+        let response = GetStatusResponse {
+            container_statuses: output,
         };
-
-        trace!(
-            "Creating app {} with config {:?}",
-            deployment_uuid,
-            hashmap_config
-        );
-
-        let app = Application {
-            application_id: deployment_uuid.clone(),
-            project_id: project_uuid,
-            image_name: format!("{}/{}", user_uuid, deployment_uuid),
-            image_tag: String::from("latest"),
-            env_variables: hashmap_config,
-        };
-
-        let message = match self.docker_engine.restart_application(&app).await {
-            Ok(_) => {
-                trace!("Applied config to {}", deployment_uuid);
-                format!("Applied config to application {}", deployment_uuid)
-            }
-            Err(e) => {
-                trace!(
-                    "Failed to apply config to application {}: {}",
-                    deployment_uuid,
-                    e
-                );
-                return Err(Status::internal(format!(
-                    "Failed to apply config to application {}: {}",
-                    deployment_uuid, e
-                )));
-            }
-        };
-
-        let response = ResponseMessage { message };
         Ok(Response::new(response))
     }
 }
@@ -391,20 +321,40 @@ impl Pomegranate for PomegranateGrpcServer {
 /// # Get App from db with uuid
 /// Get an `Application` from the database from its `uuid`, `project_uuid` and `user_uuid`.
 /// # Arguments
-/// - The borrowed `uuid` of the application to get.
-/// - The borrowed `project_uuid` of the application to get.
-/// - The borrowed `user_uuid` of the application to get.
+/// - The borrowed `container_name` of the app.
+/// - The borrowed `image_name` of the app.
+/// - The `env_vars` of the app.
 /// # Returns
 /// The application, wrapped in a Result.
 /// # Errors
 /// If the application is not found in the database, returns a `Status::not_found`.
-fn get_app(deployment_uuid: &str, project_uuid: &str, user_uuid: &str) -> Application {
+fn get_app(
+    container_name: &str,
+    image_name: &str,
+    image_tag: &str,
+    env_vars: HashMap<String, String>,
+) -> Application {
     Application {
-        application_id: deployment_uuid.to_string(),
-        project_id: project_uuid.to_string(),
-        image_name: format!("{}/{}", user_uuid, deployment_uuid),
-        image_tag: String::from("latest"),
-        ..Default::default()
+        container_name: String::from(container_name),
+        image_name: String::from(image_name),
+        image_tag: String::from(image_tag),
+        env_variables: env_vars,
+    }
+}
+
+/// # Translate Error
+/// Map the EngineError to a gRPC Status
+/// # Returns
+/// A gRPC `Status`
+fn translate_err(err: &EngineError, message: String) -> Status {
+    match err.code {
+        StatusCode::NOT_FOUND => Status::not_found(message),
+        StatusCode::BAD_REQUEST => Status::invalid_argument(message),
+        StatusCode::CONFLICT => Status::already_exists(message),
+        StatusCode::FORBIDDEN => Status::permission_denied(message),
+        StatusCode::UNAUTHORIZED => Status::unauthenticated(message),
+        StatusCode::SERVICE_UNAVAILABLE => Status::unavailable(message),
+        _ => Status::internal(message),
     }
 }
 
