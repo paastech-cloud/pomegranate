@@ -43,22 +43,18 @@ impl From<anyhow::Error> for EngineError {
 
 impl From<bollard::errors::Error> for EngineError {
     fn from(err: bollard::errors::Error) -> Self {
-        translate_err(err)
-    }
-}
-
-fn translate_err(err: bollard::errors::Error) -> EngineError {
-    match err {
-        bollard::errors::Error::DockerResponseServerError {
-            status_code,
-            message: _,
-        } => EngineError {
-            code: StatusCode::from_u16(status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            error: anyhow::Error::new(err),
-        },
-        _ => EngineError {
-            error: anyhow::Error::new(err),
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-        },
+        match err {
+            bollard::errors::Error::DockerResponseServerError {
+                status_code,
+                message: _,
+            } => EngineError {
+                code: StatusCode::from_u16(status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                error: anyhow::Error::new(err),
+            },
+            _ => EngineError {
+                error: anyhow::Error::new(err),
+                code: StatusCode::INTERNAL_SERVER_ERROR,
+            },
+        }
     }
 }
