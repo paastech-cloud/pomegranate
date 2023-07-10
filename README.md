@@ -5,7 +5,21 @@ This service manages deploying applications for the PaaS clients in an execution
 
 Documentation is available [here](https://paastech-cloud.github.io/pomegranate/pomegranate/).
 
-## Run this application
+## Try the project out with compose
+
+```bash
+$> cp .env.sample .env
+$> docker compose up --build
+```
+
+Pomegranate's gRPC server will then run on `[::]:50051`. The server will then answer to the proto routes defined at [paastech/proto](https://github.com/paastech-cloud/proto).
+
+By default, the deployed apps are available under `<project_id>.user-app.localhost`
+
+> ⚠️ Pomegranate only pulls images from the **local docker registry** !
+
+## Run this application separatly
+
 To run Pomegranate, you must first [install the Rust toolchain](https://www.rust-lang.org/tools/install) for your platform.  
 You must then install [protoc](https://grpc.io/docs/protoc-installation/), the Protocol Buffers compiler.
 

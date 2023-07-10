@@ -15,7 +15,7 @@ impl TraefikConfig {
         TraefikConfig {
             fqdn: std::env::var("POMEGRANATE_FQDN").unwrap_or(String::from("localhost")),
             network_name: std::env::var("POMEGRANATE_DOCKER_NETWORK_NAME")
-                .expect("Missing proxy network !"),
+                .unwrap_or(String::from("traefik-fallback-network")),
         }
     }
 }
