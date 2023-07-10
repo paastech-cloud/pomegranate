@@ -2,9 +2,13 @@ use std::{error::Error, fmt::Display};
 
 use tonic::codegen::http::StatusCode;
 
+/// # Execution Engine Error
+/// A unified error type across excution engines
 #[derive(Debug)]
 pub struct EngineError {
+    /// The concrete type thrown by the execution engine
     error: anyhow::Error,
+    /// The HTTP StatusCode returned by the execution engine
     pub code: StatusCode,
 }
 
