@@ -5,13 +5,13 @@ use bollard::container::{
     StartContainerOptions, StatsOptions, StopContainerOptions,
 };
 use bollard::image::RemoveImageOptions;
-use bollard::network::ConnectNetworkOptions;
+use bollard::network::{ConnectNetworkOptions, CreateNetworkOptions, ListNetworksOptions};
 use bollard::service::{ContainerStateStatusEnum, EndpointSettings};
 use bollard::Docker;
 use bytes::Bytes;
 use futures::stream::BoxStream;
 use futures::StreamExt;
-use log::{info, trace};
+use log::{error, info, trace};
 use std::collections::HashMap;
 
 use super::Engine;
@@ -32,7 +32,7 @@ pub struct DockerEngine {
 impl DockerEngine {
     /// # New
     /// Create an instance of the Docker execution engine.
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         // Attempt to connect to the Docker engine
         info!("Creating new Docker engine");
 
@@ -42,6 +42,35 @@ impl DockerEngine {
         };
 
         let config = ApplicationConfig::from_env();
+
+        // Create the network if needed
+        let list_options: ListNetworksOptions<&str> = ListNetworksOptions {
+            filters: HashMap::from([("name", vec![config.traefik_config.network_name.as_ref()])]),
+        };
+
+        match docker.list_networks(Some(list_options)).await {
+            Ok(v) if v.len() == 0 => {
+                // Create the fallback network
+                let network_options: CreateNetworkOptions<&str> = CreateNetworkOptions {
+                    name: &config.traefik_config.network_name,
+                    ..Default::default()
+                };
+
+                let result_network_creation = docker.create_network(network_options).await;
+                match result_network_creation {
+                    Ok(_) => trace!(
+                        "Docker network created: {}",
+                        &config.traefik_config.network_name
+                    ),
+                    Err(_) => error!(
+                        "Failed to create Docker network: {}",
+                        &config.traefik_config.network_name
+                    ),
+                }
+            }
+            Ok(_) => (),
+            Err(_) => error!("Failed to list Docker networks"),
+        }
 
         DockerEngine { docker, config }
     }
