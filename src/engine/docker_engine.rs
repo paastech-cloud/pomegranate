@@ -22,9 +22,10 @@ use crate::Application;
 
 /// # Docker execution engine
 /// Implementation of an execution engine that uses Docker as a backend.
+#[derive(Debug)]
 pub struct DockerEngine {
     /// The Docker driver.
-    docker: Docker,
+    pub docker: Docker,
     /// The application config, see [Config](Config)
     config: ApplicationConfig,
 }
