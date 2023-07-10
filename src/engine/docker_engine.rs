@@ -50,7 +50,7 @@ impl DockerEngine {
         };
 
         match docker.list_networks(Some(list_options)).await {
-            Ok(v) if v.len() == 0 => {
+            Ok(v) if v.is_empty() => {
                 // Create the fallback network
                 let network_options: CreateNetworkOptions<&str> = CreateNetworkOptions {
                     name: &config.traefik_config.network_name,

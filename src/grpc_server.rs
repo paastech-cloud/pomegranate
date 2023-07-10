@@ -202,7 +202,7 @@ impl Pomegranate for PomegranateGrpcServer {
 
         if let Some(Err(err)) = logs.last() {
             return Err(translate_err(
-                &err,
+                err,
                 format!(
                     "Failed to get logs of application {}: {}",
                     container_name, err
@@ -347,7 +347,7 @@ fn get_app(
 /// # Returns
 /// A gRPC `Status`
 fn translate_err(err: &EngineError, message: String) -> Status {
-    return match err.code {
+    match err.code {
         StatusCode::NOT_FOUND => Status::not_found(message),
         StatusCode::BAD_REQUEST => Status::invalid_argument(message),
         StatusCode::CONFLICT => Status::already_exists(message),
@@ -355,7 +355,7 @@ fn translate_err(err: &EngineError, message: String) -> Status {
         StatusCode::UNAUTHORIZED => Status::unauthenticated(message),
         StatusCode::SERVICE_UNAVAILABLE => Status::unavailable(message),
         _ => Status::internal(message),
-    };
+    }
 }
 
 /// # Start Server
