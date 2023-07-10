@@ -80,8 +80,7 @@ impl DockerEngine {
     /// Construct the name of the container associated with a PaaS application.
     ///
     /// # Arguments
-    /// - ID of the project that the application is a part of.
-    /// - ID of the application.
+    /// - Name of the container.
     ///
     /// # Returns
     /// - The name of the associated container.

@@ -27,11 +27,15 @@ pub struct PomegranateGrpcServer {
 #[tonic::async_trait]
 impl Pomegranate for PomegranateGrpcServer {
     /// # Start Deployment
-    /// Start a deployment from its `uuid`, `project_uuid` and `user_uuid`.
+    /// Start a deployment from its `container_name`, `image_name`, `image_tag` and `env_vars`.
     /// # Arguments
-    /// The request containing the `uuid` of the deployment to start.
+    /// The request containing
+    /// - The `container_name` of the deployment to start.
+    /// - The `image_name` of the deployment to start.
+    /// - The `image_tag` of the deployment to start.
+    /// - The `env_vars` of the deployment to start.
     /// # Returns
-    /// A message indicating the deployment was started, wrapped in a Result.
+    /// An empty response if the deployment was started, wrapped in a Result.
     /// # Errors
     /// If the deployment does not exist, returns a `not_found` error
     /// If the deployment failed to start, returns an `internal` error
@@ -95,11 +99,11 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Stop Deployment
-    /// Stop a deployment from its `uuid` and `project_uuid`.
+    /// Stop a deployment from its `container_name`.
     /// # Arguments
-    /// The request containing the `uuid` of the deployment to stop.
+    /// The request containing the `container_name` of the deployment to stop.
     /// # Returns
-    /// A message indicating the deployment was stopped, wrapped in a Result.
+    /// An empty response if the deployment was stopped, wrapped in a Result.
     /// # Errors
     /// If the deployment does not exist, returns a `not_found` error.
     /// If the deployment failed to stop, returns an `internal` error.
@@ -127,11 +131,14 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Delete Deployment
-    /// Delete a configuration to a deployment from its `uuid`, `project_uuid` and `user_uuid`.
+    /// Delete a configuration to a deployment from its `container_name`, `image_name` and `image_tag`.
     /// # Arguments
-    /// The request containing the `uuid` of the deployment to delete.
+    /// The request containing:
+    /// - The `container_name` of the deployment to delete.
+    /// - The `image_name` of the deployment to delete.
+    /// - The `image_tag` of the deployment to delete.
     /// # Returns
-    /// A message indicating the deployment was deleted, wrapped in a Result.
+    /// An empty response if the deployment was deleted, wrapped in a Result.
     /// # Errors
     /// If the deployment does not exist, returns a `not_found` error.
     /// If the deployment could not be deleted, returns an `internal` error.
@@ -173,11 +180,14 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Deployment Logs
-    /// Get the logs of a deployment from its `uuid` and `project_uuid`.
+    /// Get the logs of a deployment from its `container_name`.
     /// # Arguments
-    /// The request containing the `uuid` and `project_uuid` of the deployment to get the logs of.
+    /// The request containing the `container_name` of the deployment to get the logs from.
     /// # Returns
     /// The logs of the deployment, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment logs could not be retrieved, returns an `internal` error.
     async fn get_logs(
         &self,
         request: Request<GetLogsRequest>,
@@ -214,11 +224,14 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Deployment Stats
-    /// Get the stats of a deployment from its `uuid` and `project_uuid`.
+    /// Get the stats of a deployment from its `container_name`.
     /// # Arguments
-    /// The request containing the `uuid` and `project_uuid` of the deployment to get the stats of.
+    /// The request containing the `container_name` of the deployment to get the stats from.
     /// # Returns
     /// The stats of the deployment, wrapped in a Result.
+    /// # Errors
+    /// If the deployment does not exist, returns a `not_found` error.
+    /// If the deployment stats could not be retrieved, returns an `internal` error.
     async fn get_statistics(
         &self,
         request: Request<GetStatisticsRequest>,
@@ -256,9 +269,9 @@ impl Pomegranate for PomegranateGrpcServer {
     }
 
     /// # Deployment Status
-    /// Get the status of a deployment from its `uuid` and `project_uuid`.
+    /// Get the status of a deployment from its `container_name`.
     /// # Arguments
-    /// The request containing the `uuid` of the deployment to get the status of.
+    /// The request containing the `container_name` of the deployment to get the status from.
     /// # Returns
     /// The status of the deployment, wrapped in a Result.
     /// # Errors
